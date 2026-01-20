@@ -1,0 +1,238 @@
+/* Animations - Apple-Inspired Smooth Transitions */
+
+/* Rotación del vinilo - Velocidad base 33 1/3 RPM */
+@keyframes spin-vinyl {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Estado de animación del vinilo */
+.vinyl {
+    animation: spin-vinyl 1.8s linear infinite;
+    animation-play-state: paused;
+    will-change: transform;
+}
+
+.vinyl.spinning {
+    animation-play-state: running;
+}
+
+/* Velocidades de reproducción */
+.vinyl.speed-0-5x { animation-duration: 3.6s; }
+.vinyl.speed-0-75x { animation-duration: 2.4s; }
+.vinyl.speed-1x { animation-duration: 1.8s; }
+.vinyl.speed-1-25x { animation-duration: 1.44s; }
+.vinyl.speed-1-5x { animation-duration: 1.2s; }
+.vinyl.speed-2x { animation-duration: 0.9s; }
+
+/* Transición suave del brazo - Apple-style easing */
+.tonearm {
+    transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.tonearm.tracking {
+    transition: transform 0.6s linear;
+}
+
+/* Luz de encendido - Pulso sutil */
+@keyframes power-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 8px rgba(48, 209, 88, 0.6),
+            0 0 16px rgba(48, 209, 88, 0.3);
+    }
+    50% {
+        box-shadow:
+            0 0 12px rgba(48, 209, 88, 0.8),
+            0 0 24px rgba(48, 209, 88, 0.4);
+    }
+}
+
+.power-light.on.playing {
+    animation: power-pulse 2.5s ease-in-out infinite;
+}
+
+/* Estado de carga - Parpadeo suave */
+@keyframes power-loading {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.power-light.loading {
+    background: #ff9f0a;
+    box-shadow:
+        0 0 8px rgba(255, 159, 10, 0.6),
+        0 0 16px rgba(255, 159, 10, 0.3);
+    animation: power-loading 1s ease-in-out infinite;
+}
+
+/* Efecto hover en el vinilo - Sutil */
+.vinyl:not(.spinning) {
+    transition: filter 0.3s var(--ease-out-expo);
+}
+
+.vinyl:not(.spinning):hover {
+    filter: brightness(1.05);
+}
+
+/* Transición suave para la etiqueta */
+.vinyl-label {
+    transition: all 0.4s var(--ease-out-expo);
+}
+
+/* Efecto de entrada para items de playlist */
+@keyframes fade-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.playlist-item {
+    animation: fade-slide-in 0.3s var(--ease-out-expo) backwards;
+}
+
+.playlist-item:nth-child(1) { animation-delay: 0ms; }
+.playlist-item:nth-child(2) { animation-delay: 30ms; }
+.playlist-item:nth-child(3) { animation-delay: 60ms; }
+.playlist-item:nth-child(4) { animation-delay: 90ms; }
+.playlist-item:nth-child(5) { animation-delay: 120ms; }
+.playlist-item:nth-child(6) { animation-delay: 150ms; }
+.playlist-item:nth-child(7) { animation-delay: 180ms; }
+.playlist-item:nth-child(8) { animation-delay: 210ms; }
+
+/* Transición de estado activo en playlist */
+.playlist-item.active {
+    transition: background 0.3s var(--ease-out-expo);
+}
+
+/* Botones de control - Transiciones suaves */
+.control-btn,
+.speed-btn {
+    transition:
+        background 0.2s var(--ease-out-quart),
+        transform 0.2s var(--ease-out-quart),
+        box-shadow 0.2s var(--ease-out-quart),
+        color 0.2s var(--ease-out-quart);
+}
+
+/* Progress bar - Transición del thumb */
+.progress-bar,
+.volume-slider {
+    transition: height 0.2s var(--ease-out-quart);
+}
+
+/* Drop zone - Transición de arrastre */
+.file-drop-zone {
+    transition:
+        border-color 0.3s var(--ease-out-expo),
+        background 0.3s var(--ease-out-expo),
+        transform 0.3s var(--ease-out-expo);
+}
+
+.file-drop-zone.drag-over {
+    transform: scale(1.01);
+}
+
+/* Efecto de carga en vinilo */
+@keyframes vinyl-load {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.vinyl.loading-track {
+    animation: vinyl-load 0.4s var(--ease-out-expo);
+}
+
+/* Speed selector - Transición del indicador activo */
+.speed-btn.active {
+    transition:
+        background 0.25s var(--ease-out-expo),
+        box-shadow 0.25s var(--ease-out-expo),
+        color 0.15s var(--ease-out-quart);
+}
+
+/* Contenedor de controles - Entrada suave */
+@keyframes controls-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.controls-panel {
+    animation: controls-fade-in 0.5s var(--ease-out-expo) 0.1s backwards;
+}
+
+/* Tocadiscos - Entrada */
+.turntable {
+    animation: controls-fade-in 0.6s var(--ease-out-expo) backwards;
+}
+
+/* Playlist section - Entrada escalonada */
+.playlist-section {
+    animation: controls-fade-in 0.5s var(--ease-out-expo) 0.2s backwards;
+}
+
+/* Hover en label del archivo */
+.file-input-label {
+    transition:
+        background 0.2s var(--ease-out-quart),
+        transform 0.2s var(--ease-out-quart);
+}
+
+/* Scrollbar animation */
+.playlist {
+    scroll-behavior: smooth;
+}
+
+/* Reducir animaciones para usuarios que lo prefieren */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .vinyl {
+        animation: none;
+    }
+
+    .vinyl.spinning {
+        /* Indicador visual alternativo */
+        box-shadow: 0 0 0 2px var(--color-accent);
+    }
+}
+
+/* Focus states - Accessibility */
+.control-btn:focus-visible,
+.speed-btn:focus-visible,
+.file-input-label:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.progress-bar:focus-visible,
+.volume-slider:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: var(--radius-full);
+}
