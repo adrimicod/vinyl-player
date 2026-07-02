@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpoTest — Tests inteligentes para opositores</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>📚 OpoTest</h1>
+    <p class="tagline">Sube tu temario, genera preguntas tipo test y comparte con la comunidad</p>
+    <div class="credit-pill" id="creditPill" title="Créditos disponibles este mes">💳 <span id="creditBalance">–</span> créditos</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="generate">✨ Generar</button>
+    <button class="tab" data-tab="quiz">📝 Hacer test</button>
+    <button class="tab" data-tab="bank">🗂️ Banco</button>
+    <button class="tab" data-tab="account">👤 Mi cuenta</button>
+  </nav>
+
+  <main>
+    <!-- ============ GENERAR ============ -->
+    <section class="panel active" id="panel-generate">
+      <div class="card">
+        <h2>1 · Acota tu temario</h2>
+        <p class="hint">Cuanto mejor acotes la fuente, mejores serán las preguntas y más reutilizables para otras oposiciones.</p>
+        <div class="grid-2">
+          <label>Oposición
+            <input type="text" id="metaOposicion" placeholder="Bombero, Policía, Auxiliar administrativo…">
+          </label>
+          <label>Ley / Fuente
+            <input type="text" id="metaLey" placeholder="Ley 39/2015, Constitución Española…">
+          </label>
+          <label>Título / Capítulo
+            <input type="text" id="metaTitulo" placeholder="Título Preliminar, Capítulo II…">
+          </label>
+          <label>Artículos
+            <input type="text" id="metaArticulos" placeholder="1-15">
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2 · Pega o sube el texto</h2>
+        <textarea id="sourceText" rows="10" placeholder="Pega aquí el texto de la ley o del tema…&#10;&#10;Consejo: el generador reconoce «Artículo N.», enumeraciones a) b) c), plazos y definiciones («se entiende por…»)."></textarea>
+        <div class="row">
+          <input type="file" id="fileInput" accept=".txt,.md,text/plain">
+          <span class="hint" id="recycleHint"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3 · Genera</h2>
+        <div class="row wrap">
+          <label>Nº de preguntas
+            <select id="genCount">
+              <option>5</option><option selected>10</option><option>20</option><option>30</option>
+            </select>
+          </label>
+          <label>Motor
+            <select id="genProvider">
+              <option value="demo" selected>Demo (sin IA, simula el gasto)</option>
+              <option value="claude">Claude API (tu clave)</option>
+            </select>
+          </label>
+          <label id="apiKeyLabel" class="hidden">API key
+            <input type="password" id="apiKey" placeholder="sk-ant-…">
+          </label>
+          <button class="btn primary" id="generateBtn">✨ Generar preguntas <span id="genCost"></span></button>
+        </div>
+        <div id="generateResult" class="result hidden"></div>
+      </div>
+    </section>
+
+    <!-- ============ HACER TEST ============ -->
+    <section class="panel" id="panel-quiz">
+      <div class="card" id="quizSetup">
+        <h2>Configura tu test</h2>
+        <p class="hint">Hacer tests del banco es gratis: no consume créditos.</p>
+        <div class="row wrap">
+          <label>Ley / Fuente
+            <select id="quizLey"><option value="">Todas</option></select>
+          </label>
+          <label>Nº de preguntas
+            <select id="quizCount">
+              <option>5</option><option selected>10</option><option>20</option><option>30</option>
+            </select>
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="quizOnlyFailed"> Solo repaso de falladas (<span id="failedCount">0</span>)
+          </label>
+          <button class="btn primary" id="startQuizBtn">▶ Empezar test</button>
+        </div>
+        <p class="hint" id="quizPoolInfo"></p>
+      </div>
+      <div class="card hidden" id="quizArea"></div>
+      <div class="card hidden" id="quizResult"></div>
+    </section>
+
+    <!-- ============ BANCO ============ -->
+    <section class="panel" id="panel-bank">
+      <div class="card">
+        <h2>Banco comunitario de preguntas</h2>
+        <div class="row wrap">
+          <span id="bankSummary" class="hint"></span>
+          <span class="spacer"></span>
+          <button class="btn" id="exportBtn">⬇ Exportar JSON</button>
+          <button class="btn" id="importBtn">⬆ Importar JSON</button>
+          <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+        </div>
+        <div id="bankList" class="bank-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ MI CUENTA ============ -->
+    <section class="panel" id="panel-account">
+      <div class="card">
+        <h2>Suscripción</h2>
+        <div class="plans" id="plansBox"></div>
+      </div>
+      <div class="card">
+        <h2>Mis estadísticas</h2>
+        <div id="statsBox" class="stats"></div>
+      </div>
+      <div class="card">
+        <h2>Movimientos de créditos</h2>
+        <div id="creditLog" class="credit-log"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    OpoTest · Prototipo F0 — todo se guarda en tu navegador (localStorage). Ver <code>PLAN.md</code> para el roadmap.
+  </footer>
+
+  <!-- Núcleo de dominio (orden importa: dependencias primero) -->
+  <script src="js/core/similarity.js"></script>
+  <script src="js/core/textParser.js"></script>
+  <script src="js/core/validator.js"></script>
+  <script src="js/core/generator.js"></script>
+  <script src="js/core/bank.js"></script>
+  <script src="js/core/quality.js"></script>
+  <script src="js/core/credits.js"></script>
+  <script src="js/core/quiz.js"></script>
+  <script src="js/aiProvider.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
