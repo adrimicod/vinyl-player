@@ -99,12 +99,17 @@
       .filter(({ w }) => sim.normalizeText(w).length >= 7);
     if (!eligible.length) return null;
     const target = eligible[Math.floor(rng() * eligible.length)];
+    const isCapitalized = (w) => /^[A-ZÁÉÍÓÚÑ]/.test(w);
     const pool = [];
     for (const other of corpus) {
       if (other === sentence) continue;
       for (const w of other.split(/\s+/)) {
         const norm = sim.normalizeText(w);
-        if (norm.length >= 7 && norm !== sim.normalizeText(target.w)) pool.push(w.replace(/[.,;:]$/, ''));
+        // Solo intercambiamos palabras con la misma capitalización: reduce
+        // distractores agramaticales («Las utilizar tienen…»).
+        if (norm.length >= 7 && norm !== sim.normalizeText(target.w) && isCapitalized(w) === isCapitalized(target.w)) {
+          pool.push(w.replace(/[.,;:]$/, ''));
+        }
       }
     }
     if (!pool.length) return null;
@@ -257,7 +262,7 @@
     return { questions, discarded, factsUsed: facts.length };
   }
 
-  const api = { createRng, shuffle, perturbNumber, buildOptions, mutateNegation, mutateNumber, mutateStatement, generateQuestions };
+  const api = { createRng, shuffle, perturbNumber, buildOptions, mutateNegation, mutateNumber, mutateSwap, mutateStatement, generateQuestions };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

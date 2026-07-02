@@ -56,6 +56,19 @@ test('extractFacts detecta números, definiciones y enumeraciones', () => {
   assert.equal(enumFact.ref, 'Artículo 3');
 });
 
+test('splitSentences limpia los marcadores de enumeración «a) …»', () => {
+  const sentences = parser.splitSentences('a) Al acceso a la información pública, a los archivos y a los registros administrativos.');
+  assert.equal(sentences.length, 1);
+  assert.ok(sentences[0].startsWith('Al acceso'), 'no debe arrastrar el prefijo: ' + sentences[0]);
+});
+
+test('las frases que terminan en «:» no se usan como afirmaciones', () => {
+  const { facts } = parser.parse(
+    'Artículo 9. Derechos.\nLas personas tienen los siguientes derechos en sus relaciones con las Administraciones:'
+  );
+  assert.ok(!facts.some((f) => f.type === 'statement'), 'una introducción de enumeración no es una afirmación');
+});
+
 test('los hechos llevan la referencia del artículo al que pertenecen', () => {
   const { facts } = parser.parse(SAMPLE_LAW);
   const numberFacts = facts.filter((f) => f.type === 'number');

@@ -49,7 +49,8 @@
       .flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ«"(])/));
     const out = [];
     for (const raw of parts) {
-      const s = raw.trim();
+      // Los marcadores de enumeración «a) …» no forman parte de la frase.
+      const s = raw.trim().replace(/^[a-z]\)\s+/i, '');
       if (!s) continue;
       // Reunir con la anterior si esta terminaba en abreviatura.
       if (out.length && ABBREV_RE.test(out[out.length - 1])) {
@@ -96,7 +97,9 @@
         facts.push({ type: 'number', value: numbers[0], ref: section.ref, sentence });
         continue;
       }
-      if (sentence.length >= 40 && sentence.length <= 320) {
+      // Las frases que terminan en ':' son introducciones de enumeraciones,
+      // no afirmaciones completas: no sirven como hecho tipo statement.
+      if (sentence.length >= 40 && sentence.length <= 320 && !sentence.endsWith(':')) {
         facts.push({ type: 'statement', ref: section.ref, sentence });
       }
     }

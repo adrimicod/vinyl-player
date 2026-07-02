@@ -38,6 +38,16 @@ test('mutateNegation introduce una negación', () => {
   assert.ok(m.includes('no será'));
 });
 
+test('mutateSwap respeta la capitalización de la palabra sustituida', () => {
+  const sentence = 'el procedimiento administrativo garantiza los derechos fundamentales de todas las personas interesadas';
+  const corpus = ['Administraciones Públicas Constitución Española Reglamento'];
+  // El corpus solo ofrece palabras capitalizadas y el objetivo es minúscula → sin intercambio posible
+  assert.equal(gen.mutateSwap(sentence, corpus, gen.createRng(3)), null);
+  const corpusLower = ['la notificación electrónica establece obligaciones administrativas concretas para responsables'];
+  const swapped = gen.mutateSwap(sentence, corpusLower, gen.createRng(3));
+  assert.ok(swapped && swapped !== sentence);
+});
+
 test('generateQuestions produce preguntas válidas y ancladas al texto', () => {
   const { questions } = gen.generateQuestions(SAMPLE_LAW, SAMPLE_TOPIC, 8, { seed: 42 });
   assert.ok(questions.length >= 4, 'esperaba al menos 4 preguntas, salieron ' + questions.length);

@@ -101,6 +101,34 @@
     reader.readAsText(file);
   });
 
+  // Fragmento real de la Ley 39/2015 para probar la app sin material propio.
+  const EXAMPLE = {
+    oposicion: 'Bombero',
+    ley: 'Ley 39/2015',
+    titulo: 'Título Preliminar y Título I',
+    articulos: '1-4',
+    text: 'Artículo 1. Objeto de la Ley.\n' +
+      'La presente Ley tiene por objeto regular los requisitos de validez y eficacia de los actos administrativos, el procedimiento administrativo común a todas las Administraciones Públicas, incluyendo el sancionador y el de reclamación de responsabilidad de las Administraciones Públicas. Solo mediante ley, cuando resulte eficaz, proporcionado y necesario para la consecución de los fines propios del procedimiento, podrán incluirse trámites adicionales o distintos a los contemplados en esta Ley.\n\n' +
+      'Artículo 3. Capacidad de obrar.\n' +
+      'A los efectos previstos en esta Ley, tendrán capacidad de obrar ante las Administraciones Públicas:\n' +
+      'a) Las personas físicas o jurídicas que ostenten capacidad de obrar con arreglo a las normas civiles.\n' +
+      'b) Los menores de edad para el ejercicio y defensa de aquellos de sus derechos e intereses cuya actuación esté permitida por el ordenamiento jurídico sin la asistencia de la persona que ejerza la patria potestad, tutela o curatela.\n' +
+      'c) Los grupos de afectados, las uniones y entidades sin personalidad jurídica y los patrimonios independientes o autónomos, cuando la Ley así lo declare expresamente.\n\n' +
+      'Artículo 4. Concepto de interesado.\n' +
+      'Se consideran interesados en el procedimiento administrativo quienes lo promuevan como titulares de derechos o intereses legítimos individuales o colectivos. Las asociaciones y organizaciones representativas de intereses económicos y sociales serán titulares de intereses legítimos colectivos en los términos que la Ley reconozca.\n\n' +
+      'Artículo 30. Cómputo de plazos.\n' +
+      'Los plazos expresados en días se contarán a partir del día siguiente a aquel en que tenga lugar la notificación o publicación del acto de que se trate. Cuando los plazos se señalen por días, se entiende que estos son hábiles, excluyéndose del cómputo los sábados, los domingos y los declarados festivos. Los plazos expresados en horas se contarán de hora en hora y de minuto en minuto desde la hora y minuto en que tenga lugar la notificación o publicación del acto y no podrán tener una duración superior a 24 horas, en cuyo caso se expresarán en días.',
+  };
+
+  $('loadExampleBtn').addEventListener('click', () => {
+    $('metaOposicion').value = EXAMPLE.oposicion;
+    $('metaLey').value = EXAMPLE.ley;
+    $('metaTitulo').value = EXAMPLE.titulo;
+    $('metaArticulos').value = EXAMPLE.articulos;
+    $('sourceText').value = EXAMPLE.text;
+    updateRecycleHint();
+  });
+
   $('genProvider').addEventListener('change', () => {
     $('apiKeyLabel').classList.toggle('hidden', $('genProvider').value !== 'claude');
   });
