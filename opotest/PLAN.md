@@ -40,28 +40,78 @@ La F0 (este repositorio) sirve para **validar la mecánica completa** del produc
 
 ### 2.1 Flujo de cada iteración de desarrollo
 
-Cada iteración del bucle de mejora arranca con una fase creativa ejecutada por
-dos subagentes independientes, antes de tocar código:
+Cada iteración arranca con un **agente director** que decide la naturaleza de
+la iteración antes de tocar código: explorar (funcionalidad nueva) o pulir
+(consolidar lo que ya existe). Después, cada rama tiene sus propios subagentes.
 
 ```
-┌────────────────────────┐    ┌──────────────────────────────┐    ┌─────────────────────┐
-│ 1 · SUBAGENTE IDEAS    │ →  │ 2 · SUBAGENTE EVALUADOR      │ →  │ 3 · DESARROLLO      │
-│ Propone 5-8 ideas      │    │ Puntúa valor/coste/encaje,   │    │ Implementa lo       │
-│ originales (producto,  │    │ selecciona 1-3 y las integra │    │ seleccionado, tests │
-│ UX, generador, comuni- │    │ en el plan de la iteración   │    │ de regresión, E2E,  │
-│ dad…) sin ver el       │    │ (MEJORAS.md); el resto va    │    │ commit + push       │
-│ backlog actual         │    │ al backlog con su veredicto  │    │                     │
-└────────────────────────┘    └──────────────────────────────┘    └─────────────────────┘
+                          ┌──────────────────────────────────────┐
+                          │ 0 · AGENTE DIRECTOR                  │
+                          │ Analiza estado real del proyecto     │
+                          │ (código, MEJORAS.md, deuda, ratio    │
+                          │ explorar/pulir) y elige la rama.     │
+                          │ Justifica la decisión en MEJORAS.md. │
+                          └──────────────┬───────────────────────┘
+                 ┌───────────────────────┴───────────────────────┐
+                 ▼ RAMA EXPLORAR                                 ▼ RAMA PULIR
+┌────────────────────────────┐                  ┌────────────────────────────────┐
+│ A1 · SUBAGENTE IDEAS       │                  │ B1 · SUBAGENTES AUDITORES      │
+│ Propone 5-8 ideas          │                  │ Revisan lo YA construido, cada │
+│ originales sin ver el      │                  │ uno con una lente: correctness │
+│ backlog (≥50% no           │                  │ y bugs · UX y coherencia ·     │
+│ evolutivas)                │                  │ calidad de preguntas/generador │
+└────────────┬───────────────┘                  └────────────┬───────────────────┘
+             ▼                                               ▼
+┌────────────────────────────┐                  ┌────────────────────────────────┐
+│ A2 · SUBAGENTE EVALUADOR   │                  │ B2 · SUBAGENTE PRIORIZADOR     │
+│ Puntúa impacto/encaje/     │                  │ Deduplica y puntúa hallazgos   │
+│ esfuerzo/riesgo (…/20),    │                  │ (gravedad × frecuencia de uso  │
+│ selecciona 1-3 y registra  │                  │ ÷ coste), selecciona el lote   │
+│ criterios de aceptación    │                  │ de pulido de la iteración y    │
+│ en MEJORAS.md              │                  │ lo registra en MEJORAS.md      │
+└────────────┬───────────────┘                  └────────────┬───────────────────┘
+             └───────────────────────┬───────────────────────┘
+                                     ▼
+                     ┌───────────────────────────────┐
+                     │ 3 · DESARROLLO                │
+                     │ Implementa lo seleccionado,   │
+                     │ tests de regresión, E2E,      │
+                     │ suite en verde, commit + push │
+                     └───────────────────────────────┘
 ```
 
-Reglas del flujo:
+**El agente director** elige la rama con criterios explícitos, no por turno fijo:
+- Señales a favor de **pulir**: llevar ≥2-3 iteraciones seguidas explorando;
+  hallazgos pendientes de QA o erratas conocidas; features publicadas sin usar
+  por fricción de UX; módulos con cobertura floja o sin E2E; deuda anotada en
+  MEJORAS.md («mitigado, solución completa en F1», TODOs); superficie de la app
+  creciendo más rápido que la suite.
+- Señales a favor de **explorar**: la app está estable y testeada de punta a
+  punta; el backlog de pulido está vacío o es menor; hay huecos de propuesta de
+  valor evidentes frente a la visión §1; una iteración de pulido acaba de cerrar.
+- El director NO propone contenido (ni ideas ni arreglos): solo decide la rama,
+  fija el foco («pulir: el flujo de test y la economía de créditos») y deja su
+  decisión razonada en MEJORAS.md, para que la alternancia sea auditable.
+
+Reglas de la **rama explorar** (como hasta ahora):
 - El **subagente de ideas** trabaja sin ver el backlog (para no anclarse) — solo
-  conoce la visión del producto (este plan) y el estado actual del código. Se le
-  pide originalidad: al menos la mitad de las ideas no deben ser evolutivas.
+  conoce la visión del producto y el estado actual del código. Se le pide
+  originalidad: al menos la mitad de las ideas no deben ser evolutivas.
 - El **subagente evaluador** puntúa cada idea (impacto usuario, esfuerzo F0,
-  encaje con la visión y con los principios §1.3, riesgo) y decide qué entra en
-  la iteración. Su veredicto queda registrado en MEJORAS.md, también para las
-  descartadas (un descarte razonado es información valiosa).
+  encaje con la visión y los principios §1.3, riesgo) y decide qué entra. Su
+  veredicto queda en MEJORAS.md, también para las descartadas.
+
+Reglas de la **rama pulir**:
+- Los **auditores** (2-3 en paralelo, lentes distintas) revisan la app REAL —
+  código y comportamiento, idealmente ejercitándola — y devuelven hallazgos
+  concretos y reproducibles: bug con pasos, fricción de UX con pantalla,
+  pregunta generada de mala calidad con ejemplo. No proponen features.
+- El **priorizador** deduplica los hallazgos entre auditores, los puntúa
+  (gravedad × frecuencia de uso estimada ÷ coste de arreglo) y selecciona un
+  lote realista para la iteración, con criterios de aceptación en MEJORAS.md.
+  Todo hallazgo no seleccionado queda en el backlog con su veredicto.
+- Un arreglo de pulido siempre incluye su test de regresión: lo que se pule no
+  puede volver a romperse en silencio.
 - La fase 3 solo implementa lo seleccionado, con sus tests, y cierra con la
   suite completa en verde antes del commit.
 
