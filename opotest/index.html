@@ -98,6 +98,7 @@
               <option value="normal" selected>Normal</option>
               <option value="failed">Repaso de falladas</option>
               <option value="reverse">Inverso: ¿qué artículo es?</option>
+              <option value="exam">⏱ Simulacro cronometrado</option>
             </select>
           </label>
           <button class="btn primary" id="startQuizBtn">▶ Empezar test</button>
@@ -130,10 +131,12 @@
         <div class="row wrap">
           <span id="bankSummary" class="hint"></span>
           <span class="spacer"></span>
+          <button class="btn" id="writeQuestionBtn">✍️ Escribir pregunta</button>
           <button class="btn" id="exportBtn">⬇ Exportar JSON</button>
           <button class="btn" id="importBtn">⬆ Importar JSON</button>
           <input type="file" id="importFile" accept=".json,application/json" class="hidden">
         </div>
+        <div id="editorArea"></div>
         <div id="bankList" class="bank-list"></div>
       </div>
     </section>
@@ -193,6 +196,7 @@
   <script src="js/core/srs.js"></script>
   <script src="js/core/trapGame.js"></script>
   <script src="js/core/readiness.js"></script>
+  <script src="js/core/timer.js"></script>
   <script src="js/aiProvider.js"></script>
   <script src="js/app.js"></script>
 </body>

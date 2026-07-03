@@ -300,6 +300,7 @@
       if (!questions.length) return alert('No hay preguntas en el banco para ese filtro. Genera algunas primero.');
     }
     currentQuiz = { questions, submitted: false, mode };
+    if (mode === 'exam') currentQuiz.exam = C.createExam(questions.length);
     renderQuizArea();
   });
 
@@ -310,6 +311,9 @@
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.add('hidden');
 
+    const isExam = currentQuiz.mode === 'exam';
+    if (isExam) area.appendChild(examHeader());
+
     currentQuiz.confidences = currentQuiz.questions.map(() => null);
     currentQuiz.questions.forEach((q, i) => {
       const qBox = el('div', { class: 'quiz-question', id: 'qq' + i }, [
@@ -317,11 +321,26 @@
       ]);
       q.options.forEach((opt, j) => {
         qBox.appendChild(el('label', { class: 'option', 'data-q': i, 'data-opt': j }, [
-          el('input', { type: 'radio', name: 'q' + i, value: j }),
+          el('input', {
+            type: 'radio', name: 'q' + i, value: j,
+            onchange: isExam ? () => onExamAnswer(i, j) : () => {},
+          }),
           String.fromCharCode(65 + j) + ') ' + opt,
         ]));
       });
-      qBox.appendChild(confidenceSelector(i));
+      if (isExam) {
+        qBox.appendChild(el('button', {
+          class: 'btn small mark-btn', id: 'mark' + i,
+          onclick: (ev) => {
+            const marked = C.toggleMark(currentQuiz.exam, i);
+            ev.currentTarget.classList.toggle('marked', marked);
+            const sheetCell = $('sheet' + i);
+            if (sheetCell) sheetCell.classList.toggle('marked', marked);
+          },
+        }, '🚩 Marcar para revisar'));
+      } else {
+        qBox.appendChild(confidenceSelector(i));
+      }
       area.appendChild(qBox);
     });
     area.appendChild(el('div', { class: 'row' }, [
@@ -329,6 +348,67 @@
       el('button', { class: 'btn', onclick: exitQuiz }, '✖ Cancelar'),
     ]));
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---------- Simulacro cronometrado ----------
+
+  let examTicker = null;
+
+  function examHeader() {
+    const exam = currentQuiz.exam;
+    const clock = el('span', { class: 'exam-clock', id: 'examClock' }, formatMs(C.remainingMs(exam)));
+    const sheet = el('div', { class: 'exam-sheet' });
+    currentQuiz.questions.forEach((_, i) => {
+      sheet.appendChild(el('button', {
+        class: 'sheet-cell', id: 'sheet' + i, title: 'Ir a la pregunta ' + (i + 1),
+        onclick: () => {
+          const target = $('qq' + i);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+      }, String(i + 1)));
+    });
+    const warning = el('div', { class: 'detail warn hidden', id: 'examWarning' }, '⏰ ¡Quedan menos de 5 minutos!');
+    startExamTicker();
+    return el('div', { class: 'exam-header' }, [
+      el('div', { class: 'row' }, [el('strong', {}, '⏱ Simulacro'), el('span', { class: 'spacer' }), clock]),
+      warning,
+      sheet,
+      el('p', { class: 'hint' }, 'Sin corrección hasta el final, como en el examen real. La hoja de respuestas te lleva a cualquier pregunta; 🚩 marca las que quieras revisar. Se autocorrige al agotarse el tiempo.'),
+    ]);
+  }
+
+  function startExamTicker() {
+    stopExamTicker();
+    examTicker = setInterval(() => {
+      if (!currentQuiz || !currentQuiz.exam || currentQuiz.submitted) return stopExamTicker();
+      const exam = currentQuiz.exam;
+      const clock = $('examClock');
+      if (clock) clock.textContent = formatMs(C.remainingMs(exam));
+      if (C.shouldWarn(exam) && $('examWarning')) $('examWarning').classList.remove('hidden');
+      if (C.isExpired(exam)) {
+        stopExamTicker();
+        submitQuiz(); // autoenvío al agotarse el tiempo
+      }
+    }, 1000);
+  }
+
+  function stopExamTicker() {
+    if (examTicker) clearInterval(examTicker);
+    examTicker = null;
+  }
+
+  function onExamAnswer(questionIndex, optionIndex) {
+    if (!currentQuiz.exam || currentQuiz.submitted) return;
+    C.answerExam(currentQuiz.exam, questionIndex, optionIndex);
+    const cell = $('sheet' + questionIndex);
+    if (cell) cell.classList.add('answered');
+  }
+
+  function formatMs(ms) {
+    const total = Math.ceil(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ':' + String(s).padStart(2, '0');
   }
 
   /** Termómetro de confianza: «¿Cómo de seguro estás?» por pregunta. */
@@ -356,6 +436,7 @@
   }
 
   function exitQuiz() {
+    stopExamTicker();
     currentQuiz = null;
     $('quizArea').classList.add('hidden');
     $('quizResult').classList.add('hidden');
@@ -378,6 +459,12 @@
     if (!ephemeral) C.updateHistory(user, scored);
     let dailyResult = null;
     if (currentQuiz.mode === 'daily') dailyResult = C.completeDaily(user.daily);
+    let pace = null;
+    if (currentQuiz.mode === 'exam' && currentQuiz.exam) {
+      stopExamTicker();
+      C.finishExam(currentQuiz.exam);
+      pace = C.paceReport(currentQuiz.exam);
+    }
     saveUser();
 
     // Marcar visualmente cada pregunta
@@ -410,6 +497,18 @@
         '🔥 ' + scored.falseCertainties + ' falsa' + (scored.falseCertainties > 1 ? 's' : '') +
         ' certeza' + (scored.falseCertainties > 1 ? 's' : '') +
         ' — fallos respondidos con «Seguro». Se priorizan en el repaso de falladas.'));
+    }
+    if (pace) {
+      const paceLines = [
+        '⏱ Ritmo: mediana ' + Math.round(pace.medianMs / 1000) + 's/pregunta · a tu ritmo habrías llegado a la ' +
+        pace.wouldReach + ' de ' + currentQuiz.questions.length +
+        (pace.unanswered ? ' · ' + pace.unanswered + ' sin responder' : ''),
+      ];
+      if (pace.slowIndexes.length) {
+        paceLines.push('🐢 Te atascaste (más del doble de tu mediana) en: ' +
+          pace.slowIndexes.map((i) => 'nº ' + (i + 1)).join(', ') + '.');
+      }
+      for (const line of paceLines) bannerChildren.push(el('div', { class: 'detail' }, line));
     }
     if (dailyResult) {
       bannerChildren.push(el('div', { class: 'detail streak' }, dailyResult.counted
@@ -524,6 +623,8 @@
       bank.update(q.id, { quality: q.quality });
       rewardEvaluation();
       C.applyAuthorReward(q, credits) && bank.update(q.id, { quality: q.quality });
+      // El corrector de una errata cobra cuando la comunidad confirma su arreglo
+      C.applyCorrectorReward(q, credits) && bank.update(q.id, { quality: q.quality });
       saveUser();
       feedback.textContent = value === 1 ? '¡Gracias! Voto positivo registrado.' : 'Voto negativo registrado.';
     };
@@ -552,6 +653,126 @@
     C.rewardEvaluator(credits, user.evalDay);
   }
 
+  // ---------- Editor de preguntas (manual + corrección de erratas) ----------
+
+  /**
+   * Editor compartido con validator.js como linter en vivo.
+   * @param {object} cfg {title, initial?, errata?, saveLabel, onSave(clean), extraButtons?}
+   */
+  function questionEditor(cfg) {
+    const q = cfg.initial || { text: '', options: ['', '', '', ''], correctIndex: 0, explanation: '', sourceQuote: '' };
+    const lint = el('div', { class: 'hint lint' }, '');
+    const fields = {};
+
+    const optionRows = q.options.map((opt, i) => {
+      fields['opt' + i] = el('input', { type: 'text', value: opt, oninput: relint });
+      const radio = el('input', { type: 'radio', name: 'editorCorrect', value: i, onchange: relint });
+      if (i === q.correctIndex) radio.checked = true;
+      return el('div', { class: 'row editor-opt' }, [radio, el('span', { class: 'hint' }, String.fromCharCode(65 + i) + ')'), fields['opt' + i]]);
+    });
+    fields.text = el('textarea', { rows: 2, oninput: relint }, q.text);
+    fields.explanation = el('textarea', { rows: 2, oninput: relint }, q.explanation);
+    fields.sourceQuote = el('textarea', { rows: 2, oninput: relint }, q.sourceQuote);
+
+    function collect() {
+      const checked = box.querySelector('input[name="editorCorrect"]:checked');
+      return {
+        text: fields.text.value.trim(),
+        options: [0, 1, 2, 3].map((i) => fields['opt' + i].value.trim()),
+        correctIndex: checked ? parseInt(checked.value, 10) : -1,
+        explanation: fields.explanation.value.trim(),
+        sourceQuote: fields.sourceQuote.value.trim(),
+      };
+    }
+
+    function relint() {
+      const res = C.validateQuestion(collect());
+      lint.textContent = res.ok ? '✅ La pregunta pasa la validación.' : '⚠ ' + res.errors.join(' · ');
+      lint.classList.toggle('lint-ok', res.ok);
+    }
+
+    const box = el('div', { class: 'card editor' }, [
+      el('h2', {}, cfg.title),
+      cfg.errata ? el('div', { class: 'false-certainty' }, '🚩 Errata reportada: «' + cfg.errata + '»') : el('span', {}, ''),
+      el('label', {}, ['Enunciado', fields.text]),
+      el('div', { class: 'hint' }, 'Opciones (marca la correcta):'),
+      ...optionRows,
+      el('label', {}, ['Explicación', fields.explanation]),
+      el('label', {}, ['Cita literal de la fuente', fields.sourceQuote]),
+      lint,
+      el('div', { class: 'row' }, [
+        el('button', {
+          class: 'btn primary',
+          onclick: () => {
+            const clean = collect();
+            const res = C.validateQuestion(clean);
+            if (!res.ok) return alert('La pregunta no es válida:\n· ' + res.errors.join('\n· '));
+            cfg.onSave(clean);
+          },
+        }, cfg.saveLabel),
+        ...(cfg.extraButtons || []),
+        el('button', { class: 'btn', onclick: () => box.remove() }, '✖ Cancelar'),
+      ]),
+    ]);
+    relint();
+    return box;
+  }
+
+  $('writeQuestionBtn').addEventListener('click', () => {
+    const area = $('editorArea');
+    area.innerHTML = '';
+    area.appendChild(questionEditor({
+      title: '✍️ Aporta tu pregunta (gratis, sin IA)',
+      saveLabel: '💾 Publicar en el banco',
+      onSave: (clean) => {
+        const dup = C.findDuplicate(clean.text + ' ' + clean.options.join(' '), bank.dedupTexts());
+        if (dup) return alert('Ya existe una pregunta casi idéntica en el banco (similitud ' + Math.round(dup.score * 100) + '%).');
+        clean.topic = currentTopic();
+        clean.kind = 'manual';
+        bank.add(clean, USER_ID, 'manual');
+        user.contributed++;
+        saveUser();
+        $('editorArea').innerHTML = '';
+        renderBank();
+        alert('Pregunta publicada. Sin coste de créditos: la recompensa llegará si la comunidad la valora bien.');
+      },
+    }));
+    area.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  /** Abre el editor para corregir la primera errata abierta de una pregunta en revisión. */
+  function openErrataEditor(q) {
+    const idx = (q.quality.erratas || []).findIndex((e) => !e.resolved);
+    if (idx === -1) return;
+    const area = $('editorArea');
+    area.innerHTML = '';
+    area.appendChild(questionEditor({
+      title: '🛠 Corregir errata',
+      initial: q,
+      errata: q.quality.erratas[idx].message,
+      saveLabel: '💾 Guardar corrección',
+      onSave: (clean) => {
+        C.resolveErrata(q, idx, true, clean, USER_ID);
+        bank.update(q.id, { quality: q.quality });
+        saveUser();
+        $('editorArea').innerHTML = '';
+        renderBank();
+        alert('Corrección aplicada: la pregunta vuelve al banco activo. Cobrarás ' + C.REWARDS.CORRECTOR_FIX +
+          ' créditos cuando la comunidad confirme la corrección con votos positivos.');
+      },
+      extraButtons: [el('button', {
+        class: 'btn',
+        onclick: () => {
+          C.resolveErrata(q, idx, false);
+          bank.update(q.id, { quality: q.quality });
+          $('editorArea').innerHTML = '';
+          renderBank();
+        },
+      }, '🙅 Rechazar errata (la pregunta estaba bien)')],
+    }));
+    area.scrollIntoView({ behavior: 'smooth' });
+  }
+
   // ---------- Banco ----------
 
   function renderBank() {
@@ -570,16 +791,18 @@
     }
     for (const q of items) {
       const score = C.score(q.quality);
-      list.appendChild(el('div', { class: 'bank-item' }, [
-        el('div', {}, q.text),
-        el('div', { class: 'meta' }, [
-          el('span', { class: 'badge ' + q.quality.status }, q.quality.status),
-          el('span', {}, (q.topic && q.topic.ley) || 'sin ley'),
-          el('span', {}, 'score ' + (score > 0 ? '+' : '') + score),
-          el('span', {}, 'motor: ' + q.origin),
-          el('span', {}, (q.quality.erratas || []).filter((e) => !e.resolved).length + ' erratas abiertas'),
-        ]),
-      ]));
+      const openErratas = (q.quality.erratas || []).filter((e) => !e.resolved).length;
+      const meta = el('div', { class: 'meta' }, [
+        el('span', { class: 'badge ' + q.quality.status }, q.quality.status),
+        el('span', {}, (q.topic && q.topic.ley) || 'sin ley'),
+        el('span', {}, 'score ' + (score > 0 ? '+' : '') + score),
+        el('span', {}, 'motor: ' + q.origin),
+        el('span', {}, openErratas + ' erratas abiertas'),
+      ]);
+      if (q.quality.status === 'review' && openErratas > 0) {
+        meta.appendChild(el('button', { class: 'btn small', onclick: () => openErrataEditor(q) }, '🛠 Corregir'));
+      }
+      list.appendChild(el('div', { class: 'bank-item' }, [el('div', {}, q.text), meta]));
     }
   }
 

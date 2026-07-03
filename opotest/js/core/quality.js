@@ -16,6 +16,8 @@
     AUTHOR_GOOD_QUESTION: 1,   // créditos al autor por pregunta bien valorada
     EVALUATOR_VOTE: 0.2,       // créditos por evaluar
     EVALUATOR_DAILY_CAP: 5,    // máximo de votos recompensados al día
+    CORRECTOR_FIX: 0.5,        // créditos por corregir una errata (cuando la corrección se confirma)
+    CORRECTOR_SCORE: 1,        // score que debe recuperar la pregunta corregida para pagar
   };
 
   function score(quality) {
@@ -68,22 +70,42 @@
    * la pregunta (autocorrección solicitada → revisada → ajustada).
    * @param {object} patch  campos corregidos (text, options, correctIndex, explanation)
    */
-  function resolveErrata(question, errataIndex, accepted, patch) {
+  function resolveErrata(question, errataIndex, accepted, patch, correctorId) {
     const q = question.quality;
     const errata = (q.erratas || [])[errataIndex];
     if (!errata) throw new Error('Errata inexistente');
     errata.resolved = true;
     errata.accepted = !!accepted;
     if (accepted && patch) {
-      for (const key of ['text', 'options', 'correctIndex', 'explanation']) {
+      for (const key of ['text', 'options', 'correctIndex', 'explanation', 'sourceQuote']) {
         if (patch[key] !== undefined) question[key] = patch[key];
       }
       // Una corrección aceptada resetea los votos negativos: la pregunta cambió.
       q.down = 0;
       q.voters = {};
+      if (correctorId) {
+        q.correctedBy = correctorId;
+        q.correctorRewardedAt = q.correctorRewardedAt || null;
+      }
     }
     q.status = computeStatus(q);
     return q.status;
+  }
+
+  /**
+   * Recompensa al corrector de una errata cuando la corrección se CONFIRMA:
+   * la pregunta corregida vuelve a estar activa y recupera score positivo
+   * (§1.3: «créditos solo por calidad confirmada», nunca al guardar).
+   * Idempotente, como applyAuthorReward.
+   * @returns {boolean} true si se pagó ahora
+   */
+  function applyCorrectorReward(question, creditFns) {
+    const q = question.quality;
+    if (!q.correctedBy || q.correctorRewardedAt) return false;
+    if (q.status !== 'active' || score(q) < REWARDS.CORRECTOR_SCORE) return false;
+    creditFns.earn(REWARDS.CORRECTOR_FIX, 'Corrección de errata confirmada: ' + (question.id || ''));
+    q.correctorRewardedAt = true;
+    return true;
   }
 
   /**
@@ -113,7 +135,7 @@
     return true;
   }
 
-  const api = { score, computeStatus, vote, reportErrata, resolveErrata, applyAuthorReward, rewardEvaluator, THRESHOLDS, REWARDS };
+  const api = { score, computeStatus, vote, reportErrata, resolveErrata, applyAuthorReward, applyCorrectorReward, rewardEvaluator, THRESHOLDS, REWARDS };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

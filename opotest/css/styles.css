@@ -220,6 +220,36 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .cal-day.done { background: rgba(241, 196, 15, 0.25); color: var(--warn); font-weight: 700; }
 .cal-day.today { outline: 2px solid var(--accent); }
 
+/* ---- Simulacro ---- */
+.exam-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.exam-clock { font-size: 1.3rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.exam-sheet { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.sheet-cell {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid #33405e; border-radius: 6px;
+  color: var(--text-dim); font-size: 0.75rem; cursor: pointer;
+}
+.sheet-cell.answered { background: rgba(79, 140, 255, 0.25); color: var(--text); }
+.sheet-cell.marked { border-color: var(--warn); color: var(--warn); }
+.mark-btn.marked { border-color: var(--warn); color: var(--warn); }
+
+/* ---- Editor de preguntas ---- */
+.editor .editor-opt { align-items: center; margin-top: 6px; }
+.editor .editor-opt input[type="text"] { flex: 1; }
+.editor label { margin-top: 10px; }
+.lint { margin-top: 10px; }
+.lint.lint-ok { color: var(--ok); }
+
 /* ---- Repaso: flashcards + cazador ---- */
 .flashcard {
   background: var(--surface-2);

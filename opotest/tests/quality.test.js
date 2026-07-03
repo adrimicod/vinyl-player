@@ -84,6 +84,35 @@ test('applyAuthorReward paga una sola vez al llegar a +5', () => {
   assert.equal(earned, quality.REWARDS.AUTHOR_GOOD_QUESTION);
 });
 
+test('applyCorrectorReward paga solo cuando la corrección se confirma', () => {
+  const q = freshQuestion();
+  let earned = 0;
+  const credits = { earn: (n) => { earned += n; } };
+  quality.reportErrata(q, 'u1', 'El plazo está mal');
+  quality.resolveErrata(q, 0, true, { explanation: 'Explicación corregida y ampliada.' }, 'corrector1');
+  assert.equal(q.quality.correctedBy, 'corrector1');
+  // Recién corregida: aún sin score positivo → no se paga
+  assert.equal(quality.applyCorrectorReward(q, credits), false);
+  quality.vote(q, 'u2', 1);
+  assert.equal(quality.applyCorrectorReward(q, credits), true, 'con score confirmado se paga');
+  assert.equal(earned, quality.REWARDS.CORRECTOR_FIX);
+  assert.equal(quality.applyCorrectorReward(q, credits), false, 'idempotente');
+  assert.equal(earned, quality.REWARDS.CORRECTOR_FIX);
+});
+
+test('applyCorrectorReward no paga sin corrector registrado', () => {
+  const q = freshQuestion();
+  quality.vote(q, 'u2', 1);
+  assert.equal(quality.applyCorrectorReward(q, { earn: () => { throw new Error('no debería pagar'); } }), false);
+});
+
+test('resolveErrata sin correctorId no registra corrector (compatibilidad)', () => {
+  const q = freshQuestion();
+  quality.reportErrata(q, 'u1', 'Errata cualquiera');
+  quality.resolveErrata(q, 0, true, { explanation: 'Arreglada sin firmar la corrección.' });
+  assert.equal(q.quality.correctedBy, undefined);
+});
+
 test('rewardEvaluator respeta el tope diario', () => {
   let earned = 0;
   const credits = { earn: (n) => { earned += n; } };
