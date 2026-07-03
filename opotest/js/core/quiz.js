@@ -114,6 +114,16 @@
     userState.failedIds = userState.failedIds || [];
     userState.falseCertaintyIds = userState.falseCertaintyIds || [];
     userState.stats = userState.stats || { tests: 0, correct: 0, wrong: 0, blank: 0 };
+    // Historial por pregunta (alimenta la radiografía del temario). Tolerante
+    // con estados antiguos que no lo tenían.
+    userState.perQuestion = userState.perQuestion || {};
+    for (const r of scored.results) {
+      if (r.outcome !== 'blank') {
+        const tally = userState.perQuestion[r.id] || (userState.perQuestion[r.id] = { attempts: 0, correct: 0 });
+        tally.attempts++;
+        if (r.outcome === 'correct') tally.correct++;
+      }
+    }
     for (const r of scored.results) {
       // Mover al final: es la más recientemente vista
       const idx = userState.seenIds.indexOf(r.id);

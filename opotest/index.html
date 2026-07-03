@@ -17,6 +17,7 @@
     <button class="tab active" data-tab="generate">✨ Generar</button>
     <button class="tab" data-tab="quiz">📝 Hacer test</button>
     <button class="tab" data-tab="bank">🗂️ Banco</button>
+    <button class="tab" data-tab="coverage">📊 Radiografía</button>
     <button class="tab" data-tab="account">👤 Mi cuenta</button>
   </nav>
 
@@ -77,6 +78,7 @@
 
     <!-- ============ HACER TEST ============ -->
     <section class="panel" id="panel-quiz">
+      <div class="card daily-card" id="dailyCard"></div>
       <div class="card" id="quizSetup">
         <h2>Configura tu test</h2>
         <p class="hint">Hacer tests del banco es gratis: no consume créditos.</p>
@@ -119,6 +121,15 @@
       </div>
     </section>
 
+    <!-- ============ RADIOGRAFÍA ============ -->
+    <section class="panel" id="panel-coverage">
+      <div class="card">
+        <h2>Radiografía del temario</h2>
+        <p class="hint">Cada celda es un artículo: ⬜ acotado sin preguntas (clic para generar) · 🔵 sin intentar · 🟢 dominado (≥80%) · 🟡 flojo (50-79%) · 🔴 débil (&lt;50%). Clic en una celda con preguntas lanza un test de ese artículo.</p>
+        <div id="coverageGrid"></div>
+      </div>
+    </section>
+
     <!-- ============ MI CUENTA ============ -->
     <section class="panel" id="panel-account">
       <div class="card">
@@ -128,6 +139,11 @@
       <div class="card">
         <h2>Mis estadísticas</h2>
         <div id="statsBox" class="stats"></div>
+      </div>
+      <div class="card">
+        <h2>Reto diario</h2>
+        <div id="streakBox" class="streak-box"></div>
+        <div id="dailyCalendar" class="daily-calendar"></div>
       </div>
       <div class="card">
         <h2>Movimientos de créditos</h2>
@@ -151,6 +167,8 @@
   <script src="js/core/quiz.js"></script>
   <script src="js/core/share.js"></script>
   <script src="js/core/reverse.js"></script>
+  <script src="js/core/daily.js"></script>
+  <script src="js/core/coverage.js"></script>
   <script src="js/aiProvider.js"></script>
   <script src="js/app.js"></script>
 </body>

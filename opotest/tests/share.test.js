@@ -67,6 +67,45 @@ test('un enlace solo con preguntas inválidas falla con mensaje claro', () => {
   assert.throws(() => decodeShare(fake), /no contiene preguntas válidas/);
 });
 
+// ---- Reto con marcador a batir (v2, iteración 4) ----
+
+test('round-trip con reto: alias y nota viajan en el enlace', () => {
+  const fragment = encodeShare([goodQuestion()], { challenge: { alias: 'Adri', score10: 8.33 } });
+  const { challenge } = decodeShare(fragment);
+  assert.deepEqual(challenge, { alias: 'Adri', score10: 8.33 });
+});
+
+test('sin reto, challenge es null', () => {
+  const { challenge } = decodeShare(encodeShare([goodQuestion()]));
+  assert.equal(challenge, null);
+});
+
+test('un reto malformado degrada a compartir normal sin romper', () => {
+  assert.equal(decodeShare(encodeShare([goodQuestion()], { challenge: { alias: '', score10: 5 } })).challenge, null);
+  assert.equal(decodeShare(encodeShare([goodQuestion()], { challenge: { alias: 'X', score10: 47 } })).challenge, null);
+  assert.equal(decodeShare(encodeShare([goodQuestion()], { challenge: 'basura' })).challenge, null);
+  // Payload v2 fabricado con challenge corrupto: las preguntas sobreviven
+  const fake = 'share=' + btoa(encodeURIComponent(JSON.stringify({ v: 2, q: [goodQuestion()], c: { alias: 42 } })))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const decoded = decodeShare(fake);
+  assert.equal(decoded.questions.length, 1);
+  assert.equal(decoded.challenge, null);
+});
+
+test('el alias se recorta al máximo permitido', () => {
+  const long = 'A'.repeat(100);
+  const { challenge } = decodeShare(encodeShare([goodQuestion()], { challenge: { alias: long, score10: 5 } }));
+  assert.equal(challenge.alias.length, 30);
+});
+
+test('retrocompatibilidad: los enlaces v1 se siguen decodificando', () => {
+  const v1 = 'share=' + btoa(encodeURIComponent(JSON.stringify({ v: 1, q: [goodQuestion()] })))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const decoded = decodeShare(v1);
+  assert.equal(decoded.questions.length, 1);
+  assert.equal(decoded.challenge, null);
+});
+
 test('lo decodificado es importable al banco (formato compatible)', () => {
   const { QuestionBank, memoryStorage } = require('../js/core/bank.js');
   const bank = new QuestionBank(memoryStorage());

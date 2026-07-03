@@ -199,6 +199,47 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .detail.warn { color: var(--warn); margin-top: 6px; }
 
 .share-offer { border: 1px solid var(--accent); }
+.challenge-verdict { font-weight: 600; margin-top: 6px; }
+.detail.streak { color: var(--warn); margin-top: 6px; }
+
+/* ---- Reto diario ---- */
+.daily-card { border: 1px solid rgba(241, 196, 15, 0.35); }
+.streak-box { display: flex; gap: 12px; margin-bottom: 12px; }
+.daily-calendar { display: flex; flex-wrap: wrap; gap: 4px; }
+.cal-day {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+.cal-day.done { background: rgba(241, 196, 15, 0.25); color: var(--warn); font-weight: 700; }
+.cal-day.today { outline: 2px solid var(--accent); }
+
+/* ---- Radiografía ---- */
+.coverage-ley { font-size: 0.95rem; margin: 14px 0 6px; color: var(--text); }
+.coverage-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.coverage-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid #33405e;
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.coverage-cell:hover { border-color: var(--accent); }
+.coverage-cell.empty { opacity: 0.65; border-style: dashed; }
+.coverage-cell.good { border-color: rgba(46, 204, 113, 0.5); }
+.coverage-cell.medium { border-color: rgba(241, 196, 15, 0.5); }
+.coverage-cell.weak { border-color: rgba(231, 76, 60, 0.5); }
 
 .q-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .q-actions .voted { color: var(--ok); font-size: 0.8rem; }

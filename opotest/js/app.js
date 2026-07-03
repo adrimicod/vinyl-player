@@ -45,9 +45,10 @@
   const bank = new C.QuestionBank(storageAdapter('opotest.bank'));
   const userStore = storageAdapter('opotest.user');
   const user = Object.assign(
-    { seenIds: [], failedIds: [], stats: { tests: 0, correct: 0, wrong: 0, blank: 0 }, credits: null, evalDay: null, contributed: 0 },
+    { seenIds: [], failedIds: [], stats: { tests: 0, correct: 0, wrong: 0, blank: 0 }, credits: null, evalDay: null, contributed: 0, alias: '' },
     userStore.get() || {}
   );
+  user.daily = user.daily || C.emptyDailyState();
   const credits = new C.CreditManager(user.credits || undefined);
 
   function saveUser() {
@@ -84,6 +85,7 @@
       if (tab.dataset.tab === 'bank') renderBank();
       if (tab.dataset.tab === 'quiz') renderQuizSetup();
       if (tab.dataset.tab === 'account') renderAccount();
+      if (tab.dataset.tab === 'coverage') renderCoverage();
     });
   });
 
@@ -220,7 +222,35 @@
 
   let currentQuiz = null;
 
+  /** Tarjeta «Reto de hoy»: hábito diario con racha, sin coste de créditos. */
+  function renderDailyCard() {
+    const card = $('dailyCard');
+    card.innerHTML = '';
+    const done = C.isDailyDone(user.daily);
+    const streak = user.daily.streak || 0;
+    const pool = bank.active();
+    card.appendChild(el('h2', {}, '🔥 Reto de hoy' + (streak ? ' · racha: ' + streak + ' día' + (streak > 1 ? 's' : '') : '')));
+    if (done) {
+      card.appendChild(el('p', { class: 'hint' }, '✅ Completado. Vuelve mañana para mantener la racha.'));
+      return;
+    }
+    if (pool.length < C.DAILY_COUNT) {
+      card.appendChild(el('p', { class: 'hint' }, 'Necesitas al menos ' + C.DAILY_COUNT + ' preguntas activas en el banco para el reto diario.'));
+      return;
+    }
+    card.appendChild(el('p', { class: 'hint' }, C.DAILY_COUNT + ' preguntas, las mismas para todos los que compartan tu banco. Completa el reto cada día para no romper la racha.'));
+    card.appendChild(el('button', {
+      class: 'btn primary',
+      onclick: () => {
+        const { questions } = C.buildDailyQuiz(pool, {});
+        currentQuiz = { questions, submitted: false, mode: 'daily' };
+        renderQuizArea();
+      },
+    }, '▶ Hacer el reto de hoy'));
+  }
+
   function renderQuizSetup() {
+    renderDailyCard();
     const select = $('quizLey');
     const previous = select.value;
     select.innerHTML = '<option value="">Todas</option>';
@@ -339,10 +369,13 @@
     });
     const scored = C.scoreQuiz(currentQuiz.questions, answers, { confidences: currentQuiz.confidences });
     currentQuiz.submitted = true;
+    currentQuiz.scored = scored;
     // Los modos efímeros (inverso, test compartido sin importar) no tocan el
     // historial: sus preguntas no viven en el banco.
     const ephemeral = currentQuiz.mode === 'reverse' || currentQuiz.mode === 'shared';
     if (!ephemeral) C.updateHistory(user, scored);
+    let dailyResult = null;
+    if (currentQuiz.mode === 'daily') dailyResult = C.completeDaily(user.daily);
     saveUser();
 
     // Marcar visualmente cada pregunta
@@ -376,6 +409,23 @@
         ' certeza' + (scored.falseCertainties > 1 ? 's' : '') +
         ' — fallos respondidos con «Seguro». Se priorizan en el repaso de falladas.'));
     }
+    if (dailyResult) {
+      bannerChildren.push(el('div', { class: 'detail streak' }, dailyResult.counted
+        ? '🔥 ¡Reto diario completado! Racha: ' + dailyResult.streak + ' día' + (dailyResult.streak > 1 ? 's' : '') + '.'
+        : '🔥 El reto de hoy ya contaba para tu racha (' + dailyResult.streak + ').'));
+    }
+    // Reto compartido: veredicto contra el marcador del retador
+    if (currentQuiz.challenge) {
+      const rival = currentQuiz.challenge;
+      const diff = scored.score10 - rival.score10;
+      const verdict = diff > 0
+        ? '🏆 ¡Victoria! Has superado a ' + rival.alias + ' (' + scored.score10.toFixed(2) + ' vs ' + rival.score10.toFixed(2) + ').'
+        : diff < 0
+          ? '😅 ' + rival.alias + ' sigue por delante (' + rival.score10.toFixed(2) + ' vs tu ' + scored.score10.toFixed(2) + '). ¡Revancha!'
+          : '🤝 Empate con ' + rival.alias + ' (' + scored.score10.toFixed(2) + ').';
+      bannerChildren.push(el('div', { class: 'detail challenge-verdict' }, verdict));
+      bannerChildren.push(el('div', { class: 'detail' }, 'Comparte tu nota con «🔗 Compartir este test» y devuelve el reto.'));
+    }
     bannerChildren.push(el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
       el('button', { class: 'btn primary', onclick: exitQuiz }, '↩ Nuevo test'),
       el('button', { class: 'btn', onclick: shareCurrentQuiz }, '🔗 Compartir este test'),
@@ -384,11 +434,25 @@
     banner.scrollIntoView({ behavior: 'smooth' });
   }
 
-  /** Compartir el test actual: las preguntas viajan en el fragmento de la URL. */
+  /** Compartir el test actual: las preguntas viajan en el fragmento de la URL.
+   *  Si el test está corregido, se ofrece lanzar un reto con tu nota y alias. */
   function shareCurrentQuiz() {
     if (!currentQuiz) return;
     try {
-      const fragment = C.encodeShare(currentQuiz.questions);
+      let challenge = null;
+      if (currentQuiz.scored) {
+        const alias = prompt(
+          '¿Lanzar un reto con tu nota (' + currentQuiz.scored.score10.toFixed(2) + ')?\n' +
+          'Escribe tu alias, o deja vacío para compartir sin reto:',
+          user.alias || ''
+        );
+        if (alias && alias.trim()) {
+          user.alias = alias.trim().slice(0, C.MAX_ALIAS);
+          saveUser();
+          challenge = { alias: user.alias, score10: currentQuiz.scored.score10 };
+        }
+      }
+      const fragment = C.encodeShare(currentQuiz.questions, { challenge });
       const url = location.href.split('#')[0] + '#' + fragment;
       const done = () => alert('Enlace copiado. Cualquiera que lo abra podrá hacer este test e importar las preguntas a su banco.');
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -414,7 +478,9 @@
     document.querySelector('[data-tab="quiz"]').click();
     const setup = $('quizSetup');
     const offer = el('div', { class: 'card share-offer', id: 'shareOffer' }, [
-      el('h2', {}, '📩 Te han compartido un test'),
+      el('h2', {}, decoded.challenge
+        ? '🥊 ' + decoded.challenge.alias + ' te reta: sacó ' + decoded.challenge.score10.toFixed(2) + ' — ¿puedes superarlo?'
+        : '📩 Te han compartido un test'),
       el('p', { class: 'hint' }, decoded.questions.length + ' preguntas' +
         (decoded.skipped ? ' (' + decoded.skipped + ' descartadas por inválidas)' : '') +
         (decoded.questions[0].topic && decoded.questions[0].topic.ley ? ' · ' + decoded.questions[0].topic.ley : '')),
@@ -426,10 +492,11 @@
               questions: decoded.questions.map((q, i) => Object.assign({ id: 'sh-' + i }, q)),
               submitted: false,
               mode: 'shared',
+              challenge: decoded.challenge,
             };
             renderQuizArea();
           },
-        }, '▶ Hacer este test'),
+        }, decoded.challenge ? '🥊 Aceptar el reto' : '▶ Hacer este test'),
         el('button', {
           class: 'btn',
           onclick: () => {
@@ -536,6 +603,59 @@
     e.target.value = '';
   });
 
+  // ---------- Radiografía del temario ----------
+
+  const COVERAGE_ICONS = { empty: '⬜', untried: '🔵', good: '🟢', medium: '🟡', weak: '🔴' };
+
+  function renderCoverage() {
+    const box = $('coverageGrid');
+    box.innerHTML = '';
+    const grid = C.buildCoverageGrid(bank.active(), user.perQuestion);
+    if (!grid.length) {
+      box.appendChild(el('p', { class: 'hint' }, 'Aún no hay preguntas en el banco. Genera las primeras en «Generar».'));
+      return;
+    }
+    for (const row of grid) {
+      box.appendChild(el('h3', { class: 'coverage-ley' }, row.ley));
+      const cells = el('div', { class: 'coverage-row' });
+      for (const cell of row.cells) {
+        const tip = cell.status === 'empty'
+          ? 'Artículo ' + cell.article + ': acotado pero sin preguntas. Clic para generar.'
+          : 'Artículo ' + cell.article + ': ' + cell.total + ' preguntas · ' +
+            (cell.attempts ? cell.correct + '/' + cell.attempts + ' aciertos (' + Math.round(cell.accuracy * 100) + '%)' : 'sin intentar') +
+            '. Clic para hacer test.';
+        cells.appendChild(el('button', {
+          class: 'coverage-cell ' + cell.status,
+          title: tip,
+          onclick: () => onCoverageCellClick(row.ley, cell),
+        }, [COVERAGE_ICONS[cell.status] + ' ', el('span', {}, cell.article)]));
+      }
+      box.appendChild(cells);
+    }
+  }
+
+  function onCoverageCellClick(ley, cell) {
+    if (cell.status === 'empty') {
+      // Hueco del temario → a Generar con los metadatos precargados
+      $('metaLey').value = ley === '(sin ley)' ? '' : ley;
+      $('metaArticulos').value = cell.article;
+      document.querySelector('[data-tab="generate"]').click();
+      updateRecycleHint();
+      $('sourceText').focus();
+      return;
+    }
+    const ids = new Set(cell.questionIds);
+    const questions = bank.active().filter((q) => ids.has(q.id));
+    if (!questions.length) return;
+    currentQuiz = {
+      questions: C.shuffle(questions, C.createRng(Math.floor(Math.random() * 1e9))).slice(0, 10),
+      submitted: false,
+      mode: 'normal',
+    };
+    document.querySelector('[data-tab="quiz"]').click();
+    renderQuizArea();
+  }
+
   // ---------- Mi cuenta ----------
 
   function renderAccount() {
@@ -575,6 +695,23 @@
         el('div', { class: 'value' }, String(value)),
         el('div', { class: 'label' }, label),
       ]));
+    }
+
+    // Racha y mini-calendario del reto diario
+    const streakBox = $('streakBox');
+    streakBox.innerHTML = '';
+    const streak = user.daily.streak || 0;
+    streakBox.appendChild(el('div', { class: 'stat' }, [
+      el('div', { class: 'value' }, '🔥 ' + streak),
+      el('div', { class: 'label' }, streak === 1 ? 'día de racha' : 'días de racha'),
+    ]));
+    const calBox = $('dailyCalendar');
+    calBox.innerHTML = '';
+    for (const day of C.monthCalendar(user.daily)) {
+      calBox.appendChild(el('span', {
+        class: 'cal-day' + (day.done ? ' done' : '') + (day.isToday ? ' today' : ''),
+        title: day.key + (day.done ? ' · reto completado' : ''),
+      }, String(day.day)));
     }
 
     const logBox = $('creditLog');
