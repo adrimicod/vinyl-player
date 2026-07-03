@@ -16,6 +16,7 @@
   <nav class="tabs" id="tabs">
     <button class="tab active" data-tab="generate">✨ Generar</button>
     <button class="tab" data-tab="quiz">📝 Hacer test</button>
+    <button class="tab" data-tab="review">🧠 Repaso</button>
     <button class="tab" data-tab="bank">🗂️ Banco</button>
     <button class="tab" data-tab="coverage">📊 Radiografía</button>
     <button class="tab" data-tab="account">👤 Mi cuenta</button>
@@ -49,6 +50,7 @@
         <div class="row">
           <input type="file" id="fileInput" accept=".txt,.md,text/plain">
           <button class="btn" id="loadExampleBtn" title="Rellena el formulario con un fragmento real de la Ley 39/2015 para probar la app">🎓 Cargar ejemplo</button>
+          <button class="btn" id="makeCardsBtn" title="Convierte definiciones, plazos y enumeraciones del texto en flashcards de repaso espaciado — gratis, sin IA">🧠 Crear flashcards</button>
           <span class="hint" id="recycleHint"></span>
         </div>
       </div>
@@ -106,6 +108,21 @@
       <div class="card hidden" id="quizResult"></div>
     </section>
 
+    <!-- ============ REPASO (flashcards + cazador) ============ -->
+    <section class="panel" id="panel-review">
+      <div class="card">
+        <h2>🗃️ Flashcards (cajas de Leitner)</h2>
+        <p class="hint">Memoriza los literales de la ley: «la sabía» sube de caja (repasas menos), «no la sabía» vuelve a la caja 1. Crea tarjetas desde la pestaña «Generar» — gratis, sin IA.</p>
+        <div id="srsSummary" class="row wrap"></div>
+        <div id="srsArea"></div>
+      </div>
+      <div class="card">
+        <h2>🕵️ Cazador de erratas</h2>
+        <p class="hint">Cuatro afirmaciones sacadas de tu banco: una está saboteada (negación, número alterado o término cambiado). Encuéntrala y di qué se cambió. Entrena el ojo que detecta erratas reales.</p>
+        <div id="trapArea"></div>
+      </div>
+    </section>
+
     <!-- ============ BANCO ============ -->
     <section class="panel" id="panel-bank">
       <div class="card">
@@ -135,6 +152,10 @@
       <div class="card">
         <h2>Suscripción</h2>
         <div class="plans" id="plansBox"></div>
+      </div>
+      <div class="card">
+        <h2>¿Aprobarías hoy?</h2>
+        <div id="readinessBox"></div>
       </div>
       <div class="card">
         <h2>Mis estadísticas</h2>
@@ -169,6 +190,9 @@
   <script src="js/core/reverse.js"></script>
   <script src="js/core/daily.js"></script>
   <script src="js/core/coverage.js"></script>
+  <script src="js/core/srs.js"></script>
+  <script src="js/core/trapGame.js"></script>
+  <script src="js/core/readiness.js"></script>
   <script src="js/aiProvider.js"></script>
   <script src="js/app.js"></script>
 </body>

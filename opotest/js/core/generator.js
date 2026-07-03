@@ -119,29 +119,48 @@
     return mutated.join(' ');
   }
 
-  function mutateStatement(sentence, corpus, rng) {
+  /**
+   * Como mutateStatement, pero cada distractor lleva anotado CÓMO se fabricó
+   * ({text, kind: 'negation'|'number'|'swap'|'combo'}). Alimenta el «cazador
+   * de erratas» y el futuro «¿dónde está la trampa?».
+   */
+  function mutateStatementAnnotated(sentence, corpus, rng) {
     const seen = new Set([sim.normalizeText(sentence)]);
     const muts = [];
-    const push = (m) => {
+    const push = (m, kind) => {
       if (!m) return;
       const norm = sim.normalizeText(m);
       if (norm && !seen.has(norm)) {
         seen.add(norm);
-        muts.push(m);
+        muts.push({ text: m, kind });
       }
     };
-    push(mutateNegation(sentence));
-    push(mutateNumber(sentence, rng));
+    push(mutateNegation(sentence), 'negation');
+    push(mutateNumber(sentence, rng), 'number');
     // El swap es aleatorio: varios intentos producen distractores distintos.
     for (let i = 0; i < 8 && muts.length < 3; i++) {
-      push(mutateSwap(sentence, corpus, rng));
+      push(mutateSwap(sentence, corpus, rng), 'swap');
     }
     // Combinaciones si aún faltan distractores
-    if (muts.length < 3 && muts[0]) push(mutateNumber(muts[0], rng));
+    if (muts.length < 3 && muts[0]) push(mutateNumber(muts[0].text, rng), 'combo');
     for (let i = 0; i < 4 && muts.length < 3 && muts.length > 0; i++) {
-      push(mutateSwap(muts[muts.length - 1], corpus, rng));
+      push(mutateSwap(muts[muts.length - 1].text, corpus, rng), 'combo');
     }
     return muts;
+  }
+
+  function mutateStatement(sentence, corpus, rng) {
+    return mutateStatementAnnotated(sentence, corpus, rng).map((m) => m.text);
+  }
+
+  /** Mapa índice de opción → tipo de mutación, para los distractores. */
+  function mutationMap(options, correctIndex, annotated) {
+    const byText = new Map(annotated.map((a) => [a.text, a.kind]));
+    const map = {};
+    options.forEach((opt, i) => {
+      if (i !== correctIndex && byText.has(opt)) map[i] = byText.get(opt);
+    });
+    return map;
   }
 
   // ---------- Constructores por tipo de hecho ----------
@@ -159,12 +178,14 @@
       explanation: 'El texto original establece: «' + fact.sentence + '».',
       sourceQuote: fact.sentence,
       kind: 'number',
+      mutations: mutationMap(built.options, built.correctIndex,
+        built.options.filter((_, i) => i !== built.correctIndex).map((text) => ({ text, kind: 'number' }))),
     };
   }
 
   function questionFromDefinition(fact, topic, corpus, rng) {
-    const distractors = mutateStatement(fact.definition, corpus, rng);
-    const built = buildOptions(fact.definition, distractors, rng);
+    const annotated = mutateStatementAnnotated(fact.definition, corpus, rng);
+    const built = buildOptions(fact.definition, annotated.map((a) => a.text), rng);
     if (!built) return null;
     return {
       text: 'Según ' + refLabel(fact.ref, topic) + ', ¿qué se entiende por «' + fact.term + '»?',
@@ -173,13 +194,14 @@
       explanation: 'La fuente lo define así: «' + fact.sentence + '».',
       sourceQuote: fact.sentence,
       kind: 'definition',
+      mutations: mutationMap(built.options, built.correctIndex, annotated),
     };
   }
 
   function questionFromStatement(fact, topic, corpus, rng) {
-    const distractors = mutateStatement(fact.sentence, corpus, rng);
-    if (distractors.length < 3) return null;
-    const built = buildOptions(fact.sentence, distractors, rng);
+    const annotated = mutateStatementAnnotated(fact.sentence, corpus, rng);
+    if (annotated.length < 3) return null;
+    const built = buildOptions(fact.sentence, annotated.map((a) => a.text), rng);
     if (!built) return null;
     return {
       text: 'Según ' + refLabel(fact.ref, topic) + ', señale la afirmación CORRECTA:',
@@ -188,14 +210,15 @@
       explanation: 'Es la única literal de la fuente: «' + fact.sentence + '». Las demás contienen alteraciones.',
       sourceQuote: fact.sentence,
       kind: 'statement',
+      mutations: mutationMap(built.options, built.correctIndex, annotated),
     };
   }
 
   function questionFromEnumeration(fact, topic, corpus, rng) {
     if (fact.items.length < 3) return null;
     const correct = fact.items[Math.floor(rng() * fact.items.length)];
-    const distractors = mutateStatement(correct, corpus.concat(fact.items), rng);
-    const built = buildOptions(correct, distractors, rng);
+    const annotated = mutateStatementAnnotated(correct, corpus.concat(fact.items), rng);
+    const built = buildOptions(correct, annotated.map((a) => a.text), rng);
     if (!built) return null;
     return {
       text: 'Según ' + refLabel(fact.ref, topic) + ', ¿cuál de los siguientes figura entre los supuestos enumerados?',
@@ -204,6 +227,7 @@
       explanation: 'Figura literalmente en la enumeración de la fuente.',
       sourceQuote: correct,
       kind: 'enumeration',
+      mutations: mutationMap(built.options, built.correctIndex, annotated),
     };
   }
 
@@ -262,7 +286,7 @@
     return { questions, discarded, factsUsed: facts.length };
   }
 
-  const api = { createRng, shuffle, perturbNumber, buildOptions, mutateNegation, mutateNumber, mutateSwap, mutateStatement, generateQuestions };
+  const api = { createRng, shuffle, perturbNumber, buildOptions, mutateNegation, mutateNumber, mutateSwap, mutateStatement, mutateStatementAnnotated, generateQuestions };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

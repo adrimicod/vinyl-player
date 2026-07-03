@@ -220,6 +220,37 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .cal-day.done { background: rgba(241, 196, 15, 0.25); color: var(--warn); font-weight: 700; }
 .cal-day.today { outline: 2px solid var(--accent); }
 
+/* ---- Repaso: flashcards + cazador ---- */
+.flashcard {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: 10px;
+}
+.flashcard .meta { color: var(--text-dim); font-size: 0.75rem; margin-bottom: 8px; }
+.flashcard .front { font-size: 1.05rem; line-height: 1.5; margin-bottom: 12px; }
+.flashcard .back {
+  white-space: pre-line;
+  background: rgba(79, 140, 255, 0.08);
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.trap-option { display: block; width: 100%; text-align: left; margin: 6px 0; }
+.trap-option.selected { border-color: var(--accent-2); }
+
+/* ---- ¿Aprobarías hoy? ---- */
+.readiness-dial { text-align: center; padding: 14px; border-radius: var(--radius); background: var(--surface-2); }
+.readiness-dial .big { font-size: 2.6rem; font-weight: 700; }
+.readiness-dial.good .big { color: var(--ok); }
+.readiness-dial.medium .big { color: var(--warn); }
+.readiness-dial.weak .big { color: var(--bad); }
+.readiness-dial .detail { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
+.weak-list { margin: 6px 0 0 20px; font-size: 0.88rem; }
+.weak-list li { margin: 6px 0; }
+
 /* ---- Radiografía ---- */
 .coverage-ley { font-size: 0.95rem; margin: 14px 0 6px; color: var(--text); }
 .coverage-row { display: flex; flex-wrap: wrap; gap: 6px; }

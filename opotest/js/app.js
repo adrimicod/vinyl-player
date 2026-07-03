@@ -49,6 +49,7 @@
     userStore.get() || {}
   );
   user.daily = user.daily || C.emptyDailyState();
+  user.srs = user.srs || C.emptySrsState();
   const credits = new C.CreditManager(user.credits || undefined);
 
   function saveUser() {
@@ -86,6 +87,7 @@
       if (tab.dataset.tab === 'quiz') renderQuizSetup();
       if (tab.dataset.tab === 'account') renderAccount();
       if (tab.dataset.tab === 'coverage') renderCoverage();
+      if (tab.dataset.tab === 'review') renderReview();
     });
   });
 
@@ -603,6 +605,134 @@
     e.target.value = '';
   });
 
+  // ---------- Repaso: flashcards Leitner + cazador de erratas ----------
+
+  $('makeCardsBtn').addEventListener('click', () => {
+    const text = $('sourceText').value.trim();
+    if (text.length < 100) return alert('Pega antes un texto (o usa «Cargar ejemplo») para crear flashcards.');
+    const cards = C.cardsFromFacts(C.parse(text).facts);
+    if (!cards.length) return alert('No se encontraron definiciones, plazos ni enumeraciones convertibles en tarjetas.');
+    const res = C.addCards(user.srs, cards);
+    saveUser();
+    alert('🧠 ' + res.added + ' flashcards nuevas' + (res.skipped ? ' (' + res.skipped + ' ya existían)' : '') + '. Repásalas en la pestaña «Repaso».');
+  });
+
+  function renderReview() {
+    renderSrs();
+    renderTrapIntro();
+  }
+
+  function renderSrs() {
+    const summary = $('srsSummary');
+    const area = $('srsArea');
+    summary.innerHTML = '';
+    area.innerHTML = '';
+    const counts = C.boxCounts(user.srs);
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    summary.appendChild(el('span', { class: 'hint' }, total
+      ? 'Cajas: ' + [1, 2, 3, 4, 5].map((b) => 'C' + b + ':' + counts[b]).join(' · ')
+      : 'Aún no tienes tarjetas.'));
+    if (!total) return;
+
+    const due = C.dueCards(user.srs);
+    if (!due.length) {
+      const next = C.nextDue(user.srs);
+      area.appendChild(el('p', { class: 'hint' }, '✅ Nada pendiente hoy.' +
+        (next ? ' Próximo repaso: ' + new Date(next).toLocaleDateString() + '.' : '')));
+      return;
+    }
+    area.appendChild(el('p', { class: 'hint' }, due.length + ' tarjeta' + (due.length > 1 ? 's' : '') + ' por repasar hoy.'));
+    showFlashcard(area, due[0], due.length);
+  }
+
+  function showFlashcard(area, card, remaining) {
+    const box = el('div', { class: 'flashcard' }, [
+      el('div', { class: 'meta' }, 'Caja ' + card.box + ' · quedan ' + remaining),
+      el('div', { class: 'front' }, card.front),
+    ]);
+    const reveal = el('button', {
+      class: 'btn primary',
+      onclick: () => {
+        reveal.remove();
+        box.appendChild(el('div', { class: 'back' }, card.back));
+        box.appendChild(el('div', { class: 'row' }, [
+          el('button', { class: 'btn small', onclick: () => gradeCard(card, 'know') }, '😎 La sabía'),
+          el('button', { class: 'btn small', onclick: () => gradeCard(card, 'doubt') }, '🤔 Dudé'),
+          el('button', { class: 'btn small', onclick: () => gradeCard(card, 'fail') }, '❌ No la sabía'),
+        ]));
+      },
+    }, '👁 Mostrar respuesta');
+    box.appendChild(reveal);
+    area.appendChild(box);
+  }
+
+  function gradeCard(card, grade) {
+    C.review(user.srs, card.id, grade);
+    saveUser();
+    renderSrs();
+  }
+
+  let currentTrapRound = null;
+
+  function renderTrapIntro() {
+    const area = $('trapArea');
+    area.innerHTML = '';
+    currentTrapRound = null;
+    const round = C.buildTrapRound(bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
+    if (!round) {
+      area.appendChild(el('p', { class: 'hint' }, 'Necesitas al menos 4 preguntas en el banco con citas distintas. Genera más en «Generar».'));
+      return;
+    }
+    area.appendChild(el('button', { class: 'btn primary', onclick: () => startTrapRound(round) }, '🎯 Jugar una ronda'));
+  }
+
+  function startTrapRound(round) {
+    currentTrapRound = { round, picked: null };
+    const area = $('trapArea');
+    area.innerHTML = '';
+    area.appendChild(el('p', { class: 'hint' }, '¿Cuál de estas afirmaciones está saboteada?'));
+    round.statements.forEach((s, i) => {
+      area.appendChild(el('button', {
+        class: 'option trap-option',
+        'data-i': i,
+        onclick: (ev) => pickTrapStatement(i, ev.currentTarget),
+      }, String.fromCharCode(65 + i) + ') ' + s));
+    });
+  }
+
+  function pickTrapStatement(index, node) {
+    if (currentTrapRound.picked !== null) return;
+    currentTrapRound.picked = index;
+    node.classList.add('selected');
+    const area = $('trapArea');
+    area.appendChild(el('p', { class: 'hint' }, '¿Y qué se cambió?'));
+    const kindRow = el('div', { class: 'row wrap' });
+    for (const [kind, label] of Object.entries(C.KIND_LABELS)) {
+      kindRow.appendChild(el('button', { class: 'btn small', onclick: () => finishTrapRound(kind) }, label));
+    }
+    area.appendChild(kindRow);
+  }
+
+  function finishTrapRound(pickedKind) {
+    const { round, picked } = currentTrapRound;
+    const verdict = C.checkAnswer(round, picked, pickedKind);
+    const area = $('trapArea');
+    area.querySelectorAll('.trap-option').forEach((optEl, i) => {
+      if (i === round.trapIndex) optEl.classList.add('wrong');
+      optEl.disabled = true;
+    });
+    const messages = [
+      verdict.statementCorrect ? '✅ ¡Cazada! Señalaste la afirmación saboteada.' : '❌ La saboteada era la ' + String.fromCharCode(65 + round.trapIndex) + '.',
+      (verdict.kindCorrect ? '✅' : '❌') + ' Tipo de sabotaje: ' + C.KIND_LABELS[round.mutationKind] + '.',
+      'Original: «' + round.original + '»',
+    ];
+    area.appendChild(el('div', { class: 'explanation' }, messages.join(' ')));
+    area.appendChild(el('div', { class: 'row' }, [
+      el('button', { class: 'btn primary', onclick: renderTrapIntro }, '🎯 Otra ronda'),
+      el('span', { class: 'hint' }, 'Este ojo entrenado vale oro: cuando veas una errata real en un test, repórtala con 🚩.'),
+    ]));
+  }
+
   // ---------- Radiografía del temario ----------
 
   const COVERAGE_ICONS = { empty: '⬜', untried: '🔵', good: '🟢', medium: '🟡', weak: '🔴' };
@@ -695,6 +825,41 @@
         el('div', { class: 'value' }, String(value)),
         el('div', { class: 'label' }, label),
       ]));
+    }
+
+    // ¿Aprobarías hoy? (Monte Carlo sobre el historial por pregunta)
+    const readyBox = $('readinessBox');
+    readyBox.innerHTML = '';
+    const readiness = C.estimateReadiness(bank.active(), user.perQuestion, {
+      rng: C.createRng(Math.floor(Math.random() * 1e9)),
+    });
+    if (!readiness.ok) {
+      readyBox.appendChild(el('p', { class: 'hint' },
+        'Aún no hay datos suficientes: has practicado ' + readiness.attempted + ' de las ' +
+        readiness.needed + ' preguntas mínimas. Haz más tests y vuelve.'));
+    } else {
+      const pct = Math.round(readiness.passRate * 100);
+      readyBox.appendChild(el('div', { class: 'readiness-dial ' + (pct >= 70 ? 'good' : pct >= 40 ? 'medium' : 'weak') }, [
+        el('div', { class: 'big' }, pct + '%'),
+        el('div', { class: 'detail' }, 'Hoy aprobarías ~' + readiness.passed + ' de ' + readiness.simulations +
+          ' exámenes simulados (nota media ' + readiness.avgScore.toFixed(2) + ').'),
+      ]));
+      if (readiness.weakSpots.length) {
+        readyBox.appendChild(el('p', { class: 'hint' }, 'Dónde pierdes más nota:'));
+        const list = el('ul', { class: 'weak-list' });
+        for (const spot of readiness.weakSpots) {
+          list.appendChild(el('li', {}, [
+            spot.label + ' (' + spot.questions + ' preguntas practicadas) ',
+            el('button', {
+              class: 'btn small',
+              onclick: () => {
+                document.querySelector('[data-tab="coverage"]').click();
+              },
+            }, '📊 Ver en radiografía'),
+          ]));
+        }
+        readyBox.appendChild(list);
+      }
     }
 
     // Racha y mini-calendario del reto diario

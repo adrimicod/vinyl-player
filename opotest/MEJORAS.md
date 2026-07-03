@@ -106,48 +106,111 @@ del subagente evaluador (impacto usuario / encaje visión §1.3 / esfuerzo F0,
 - Clic en celda con preguntas lanza un test filtrado de ese artículo; celda gris
   enlaza a «Generar» precargado con la ley/artículo («reciclar antes que generar»).
 
+## Iteración 5 — Memoria a largo plazo, ojo crítico y termómetro de aprobado (completada)
+
+Fase creativa del flujo §2.1: el subagente de ideas propuso 8 ideas; evaluación
+del subagente evaluador (impacto usuario / encaje visión §1.3 / esfuerzo F0,
+5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
+
+| # | Idea | Imp. | Enc. | Esf. | Ries. | Total | Veredicto |
+|---|------|------|------|------|-------|-------|-----------|
+| 1 | Flashcards con cajas de Leitner | 5 | 5 | 3 | 4 | **17** | ✅ Seleccionada — ataca el backlog #1 («Repaso espaciado», el más antiguo) y da uso directo a los `facts` tipados que el parser ya extrae; 0 IA, 0 créditos, y el planificador `srs.js` (reloj inyectable, como `daily.js`) queda reutilizable para espaciar también preguntas falladas. |
+| 2 | Cazador de erratas | 4 | 5 | 3 | 4 | **16** | ✅ Seleccionada — es el backlog #2 («Caza la errata / ¿Dónde está la trampa?»), aplazado desde it.3 y ya propuesto 3 veces por subagentes independientes; entrena justo la detección de erratas que alimenta la autorregulación §1.3. Coste menor de lo estimado: los mutadores ya están expuestos en la API de `generator.js`. |
+| 8 | «¿Aprobarías hoy?» — medidor de preparación | 4 | 4 | 4 | 3 | **15** | ✅ Seleccionada — responde LA pregunta del opositor con datos que la it.4 ya persiste (`perQuestion`); núcleo `readiness.js` puro (RNG inyectable) barato. Riesgo real: estimar con pocos datos engaña → guard de datos mínimos obligatorio. Entra por delante de sus empates a 15 por ser S con core testeable (la 6 sería una tercera M; la 7 no tiene core). |
+| 6 | Simulacro con hoja de examen real | 4 | 4 | 3 | 4 | **15** | → Backlog, fusionada con «Modo simulacro» (#3, ya fusión de it.4) — tercera propuesta independiente = señal fuerte; aporta hoja de respuestas con cuadrícula, marcar-para-revisar, aviso a 5 min y tiempo por pregunta. No entra para no meter tres M en la iteración; primera candidata para it.6. |
+| 7 | Chuleta imprimible post-test | 3 | 4 | 4 | 4 | **15** | → Backlog — barata y bien anclada a la fuente (cita literal + tu error), pero es casi todo UI/CSS `@media print` sin núcleo testeable con `node --test`; ideal como relleno S de una iteración futura. |
+| 5 | Completa el artículo (cloze) | 4 | 4 | 3 | 3 | **14** | → Backlog, fusionada con «texto desvanecido» (#4, it.4) — misma familia (memorización de literales con huecos); aporta los chips de opciones y la corrección coloreada sobre el texto. No entra para no duplicar modalidad de memorización con las flashcards seleccionadas. |
+| 3 | Modo manos libres con voz | 3 | 3 | 4 | 3 | **13** | → Backlog — valor real para el opositor que estudia caminando/conduciendo y gratis (speechSynthesis), pero sin núcleo puro testeable y con riesgo de calidad/disponibilidad de voces en español según navegador y `file://`. |
+| 4 | Duelo local a un dispositivo | 3 | 3 | 3 | 3 | **12** | → Backlog, fusionada con «Duelo fantasma» (#9) — variante más barata (pasar el móvil, sin grabación/reproducción), pero el «reto compartido» de la it.4 ya cubre la competición social a una fracción del coste; baja prioridad. |
+
+### Seleccionadas y criterios de aceptación
+
+**Idea 1 — Flashcards con cajas de Leitner** (esfuerzo M)
+- Nuevo `core/srs.js` puro con reloj inyectable: cajas 1-5 con intervalos
+  crecientes; «la sabía» sube de caja, «dudé» repite, «no la sabía» vuelve a la
+  caja 1; transiciones e intervalos cubiertos con `node --test`.
+- Las tarjetas se construyen desde los `facts` del parser (definiciones, plazos,
+  enumeraciones) sin IA ni créditos; la vista «Repasar hoy» lista solo las
+  vencidas según fecha y el estado persiste en `userState`/localStorage.
+- El planificador (`dueCards`/próxima fecha) se expone de forma reutilizable
+  para el futuro repaso espaciado de preguntas falladas (backlog #2).
+
+**Idea 2 — Cazador de erratas** (esfuerzo M)
+- `generator.js` anota `mutation` (tipo: negación/número/intercambio) por
+  distractor en preguntas `origin:'demo'` sin romper la API existente (tests de
+  regresión de la suite actual en verde).
+- Nuevo `core/trapGame.js` puro: construye una ronda de 4 afirmaciones (3
+  intactas + exactamente 1 saboteada con un mutador) y expone qué se cambió;
+  tests: solo una saboteada, la saboteada difiere del original, material sin
+  mutación anotada se descarta sin error.
+- La corrección pide identificar la afirmación falsa y el tipo de cambio; al
+  terminar, CTA para reportar erratas reales (enlaza con `quality.js`).
+
+**Idea 8 — «¿Aprobarías hoy?»** (esfuerzo S)
+- Nuevo `core/readiness.js` puro: `simulateExams(perQuestion, bank, opts)` con
+  RNG inyectable → probabilidad de aprobar sobre N exámenes virtuales
+  («aprobarías ~68 de 100») y top 3 artículos que más nota quitan; determinista
+  con semilla fija en tests.
+- Guard de datos mínimos: por debajo de un umbral de preguntas intentadas
+  devuelve «sin datos suficientes» en vez de un número engañoso (testeado).
+- Dial en «Mi cuenta» enlazado con la radiografía: clic en un artículo débil
+  lanza un test filtrado de ese artículo.
+
 ## Backlog priorizado (siguientes iteraciones)
 
-1. **Repaso espaciado**: priorizar falladas antiguas y aciertos con baja confianza
-   (sube de prioridad: el termómetro de la iteración 3 aporta justo el dato de
-   confianza que faltaba; el historial `seenIds`/`failedIds` ya da la base, y el
-   historial por pregunta de la radiografía (it.4) añade el dato de intentos).
-2. **Modo «Caza la errata» / «¿Dónde está la trampa?»** (ideas subagente, it.3 +
-   it.4, fusionadas): dos caras del mismo músculo metacognitivo reutilizando los
-   mutadores del generador — (a) la app corrompe una pregunta buena y el usuario
-   detecta el fallo; (b) al fallar, el generador revela cómo fabricó el distractor
-   (negación/número/intercambio) y te reta a señalar la palabra trampa. Entrena la
-   detección de erratas que alimenta el sistema de calidad. Requiere anotar
-   `mutation` por distractor en `generator.js` (solo preguntas `origin:'demo'`).
-3. **Modo simulacro cronometrado** (fusionada con idea subagente, it.4): tiempo
-   total realista, sin feedback hasta el final, barra de ritmo, autocorrección al
-   agotarse, baremo configurable por oposición (algunas restan 1/4 en vez de 1/3).
-   Candidata a primera diferencia funcional del plan Pro (gating vía `credits.js`).
-4. **Memorización literal «texto desvanecido»** (idea subagente, it.4): modo de
-   estudio en el que el artículo pegado oculta palabras clave (números, términos,
-   verbos) en 3 rondas de dificultad creciente; gratis y sin IA. Núcleo `fade.js`
-   puro (huecos deterministas, RNG inyectable).
-5. **Test por distribución de temas en la UI** — el core ya lo soporta
+1. **Modo simulacro cronometrado con hoja de examen real** (fusión: backlog
+   original + ideas subagente it.4 e it.5 — tres propuestas independientes):
+   cuenta atrás, sin feedback hasta el final, hoja de respuestas lateral con
+   cuadrícula, marcar para revisar y saltar, aviso a 5 min, barra de ritmo,
+   autocorrección al agotarse, estadística de tiempo por pregunta y baremo
+   configurable por oposición. Candidata a primera diferencia funcional del
+   plan Pro (gating vía `credits.js`). Primera candidata para it.6.
+2. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y
+   aciertos con baja confianza. Baja de coste tras la it.5: el planificador de
+   `srs.js` (cajas/intervalos) es reutilizable, y el termómetro (it.3) más el
+   historial `perQuestion` (it.4) ya aportan los datos.
+3. **Memorización literal «texto desvanecido» / cloze «completa el artículo»**
+   (ideas subagente, it.4 + it.5, fusionadas): el artículo literal oculta
+   palabras clave (números, órganos, verbos detectados por el parser, que debe
+   exponer posiciones) en rondas de dificultad creciente; relleno con chips de
+   opciones y corrección coloreada sobre el texto completo. Gratis y sin IA;
+   núcleo puro (huecos deterministas, RNG inyectable).
+4. **Test por distribución de temas en la UI** — el core ya lo soporta
    (`buildDistributedQuiz`, «40 de A, 30 de B, 30 de C»); falta la UI de reparto.
-6. **Taller de autor / aportar pregunta manual** (ideas subagente, it.3 + it.4,
+5. **Taller de autor / aportar pregunta manual** (ideas subagente, it.3 + it.4,
    fusionadas): formulario «Escribir pregunta» con `validator.js` como linter en
    vivo y dedup (`similarity`) antes de entrar al banco como `origin:'manual'`;
    gratis y **sin recompensa al publicar** — la recompensa llega por score
    comunitario (quality.js), respetando «créditos solo por calidad confirmada».
-7. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
-8. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
+6. **Chuleta imprimible post-test** (idea subagente, it.5): botón «Generar
+   chuleta» tras corregir — vista limpia agrupada por ley/artículo con cita
+   literal, explicación y tu error concreto, optimizada para `window.print()`
+   con CSS `@media print`. Esfuerzo S, ideal como relleno de iteración.
+7. **Modo manos libres con voz** (idea subagente, it.5): speechSynthesis lee
+   pregunta y opciones, respuesta con teclas 1-4, lectura de la corrección.
+   Gratis y compatible `file://`, pero sin core testeable y con riesgo de
+   voces en español desiguales por navegador; validar con prueba manual.
+8. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
+9. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
    (cambiar de usuario activo y ver votos/recompensas cruzadas).
-9. **Duelo fantasma** (idea subagente, it.3; re-propuesta en it.4): repetir un
-   test contra tu propia «repetición» grabada, exportable como JSON para retar a
-   amigos; baja prioridad por coste de UI frente a valor de estudio. El «reto
-   compartido» de la it.4 cubre la parte social a una fracción del coste.
-10. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
+10. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local a un
+    dispositivo», fusionadas): la variante local (alternarse las mismas
+    preguntas pasándose el móvil, marcador en vivo) es más barata que la
+    repetición grabada; aun así baja prioridad porque el «reto compartido»
+    (it.4) ya cubre la competición social a una fracción del coste.
+11. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
     con un prompt barato («¿es la marcada la única respuesta correcta según la fuente?»).
-11. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
+12. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
     «LPACAP» no fragmenten el banco.
-12. **PWA** (manifest + service worker) para estudiar offline en el móvil.
+13. **PWA** (manifest + service worker) para estudiar offline en el móvil.
 
 Nota de fusión (it.4): el antiguo punto «Mapa de calor del temario» sale del
 backlog al quedar absorbido por la «Radiografía del temario» seleccionada; el
 «Modo simulacro» y el «Taller de autor» se fusionan con sus variantes propuestas
 en it.4 (ver tabla de evaluación).
+
+Nota de fusión (it.5): «Caza la errata / ¿Dónde está la trampa?» sale del
+backlog al ser seleccionada como «Cazador de erratas»; el «simulacro con hoja
+de examen real» y el «cloze» se fusionan con sus gemelos del backlog (#1 y #3);
+el «duelo local» se fusiona con «Duelo fantasma» (#10); «chuleta imprimible» y
+«modo manos libres con voz» entran como puntos nuevos (#6 y #7).
