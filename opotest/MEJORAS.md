@@ -207,57 +207,112 @@ del subagente evaluador (impacto usuario / encaje visión §1.3 / esfuerzo F0,
 - Tests: pregunta manual válida entra como `active`; duplicada o inválida se
   rechaza con mensaje claro sin tocar el banco.
 
+## Iteración 7 — Memoria literal, chuleta sinóptica y muerte súbita (completada)
+
+Fase creativa del flujo §2.1: el subagente de ideas propuso 8 ideas; evaluación
+del subagente evaluador (impacto usuario / encaje visión §1.3 / esfuerzo F0,
+5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20). Última
+iteración del ciclo: prima cerrar bien (features completas, núcleos puros
+testeados) sobre abrir frentes grandes.
+
+| # | Idea | Imp. | Enc. | Esf. | Ries. | Total | Veredicto |
+|---|------|------|------|------|-------|-------|-----------|
+| 2 | Completa el literal (cloze con teclado) | 5 | 5 | 3 | 4 | **17** | ✅ Seleccionada — ES el backlog #2 en su **tercera aparición** independiente (it.4 «texto desvanecido» + it.5 «cloze» + esta); teclear en vez de elegir chips exige recuerdo activo (mejor para literales) y `similarity` ya da la corrección tolerante. Cierra un top-3 del backlog. |
+| 6 | Chuleta sinóptica imprimible | 4 | 5 | 4 | 4 | **17** | ✅ Seleccionada — ≈ backlog #3 en su **tercera aparición** (it.5 + it.6 + esta); la versión sinóptica desde los `facts` del parser aporta el núcleo puro `cheatsheet.js` que respondía justo a la objeción de it.5 («casi todo UI/CSS sin core testeable»). Cierra otro top-3 del backlog. |
+| 7 | Modo cadena (muerte súbita) | 4 | 4 | 5 | 4 | **17** | ✅ Seleccionada — S barato sobre el quiz existente, 0 IA/0 créditos, y alimenta el repaso (la que rompe la cadena entra prioritaria). No amplía la familia de juegos de hechos (objeción it.6 a «el intruso»): es un modo de test, como el reto diario. Relleno S perfecto para cerrar el ciclo. |
+| 4 | Mapa de confusiones | 4 | 4 | 3 | 3 | **14** | → Backlog, fusionada con «Perfil de fallo» (#2) — misma familia y mismo prerrequisito (persistir la opción elegida en `perQuestion`; `scoreQuiz` ya devuelve `given`, falta guardarlo); los mini-drills binarios de discriminación son la mejor aportación nueva. No entra: tercera M abriría frente nuevo en la última iteración. |
+| 5 | Modo manos libres (test por voz) | 3 | 3 | 4 | 3 | **13** | → Backlog, fusionada con «manos libres» (#4) — **tercera propuesta** (it.5 + it.6 + esta), señal real; pero esta versión «js/tts.js sin core» retrocede respecto al `audioQueue.js` testeable de it.6, y el riesgo de voces en español por navegador/`file://` sigue intacto. |
+| 8 | Explícalo antes de mirar | 3 | 4 | 4 | 2 | **13** | → Backlog (nuevo) — la autoexplicación es la técnica de estudio con más evidencia y el anclaje a `explanation`+`sourceQuote` encaja con §1.3, pero el feedback por Jaccard sobre texto libre es frágil: «te faltaron estos conceptos» calculado por solape de tokens puede ser ruido frustrante. Prototipar cuando haya hueco. |
+| 1 | Duelo fantasma con ritmo real | 3 | 3 | 3 | 3 | **12** | → Backlog, fusionada con «Duelo» (#9) — tercera re-propuesta (rechazada en it.3 e it.4); la novedad real es que `timer.js` (it.6) y `share.js` ya abaratan el ritmo y el transporte por URL. Aun así, el reto compartido (it.4) cubre la competición social a fracción del coste; sigue baja prioridad. |
+| 3 | Plan de estudio con cuenta atrás | 4 | 3 | 2 | 2 | **11** | → Backlog, fusionada con «Cuenta atrás al examen» (#5) — versión más ambiciosa (L) de la idea que it.6 ya aplazó por depender de estimaciones jóvenes (`readiness` lleva una iteración de rodaje); un plan diario prescriptivo poco fiable desmotiva. L en la última iteración contradice «cerrar bien». La prescripción diaria concreta («hoy: 10 preguntas de arts. 13-18 + 12 tarjetas») es la aportación a conservar. |
+
+### Seleccionadas y criterios de aceptación
+
+**Idea 2 — Completa el literal (cloze con teclado)** (esfuerzo M)
+- `textParser` expone posiciones de palabras clave (números, términos de
+  definiciones, órganos) dentro de cada frase/hecho sin romper la API actual
+  (suite de regresión en verde).
+- Nuevo `core/cloze.js` puro: huecos deterministas con RNG inyectable y
+  dificultad creciente (más huecos por ronda); corrección tolerante vía
+  `similarity` (acepta variantes menores de la respuesta tecleada) y pistas
+  progresivas (primera letra, longitud) modeladas en el core; todo con
+  `node --test`.
+- UI en la pestaña Repaso: se teclea la respuesta, corrección coloreada sobre
+  el texto completo con su cita (`ref`); 0 créditos, 0 IA.
+
+**Idea 6 — Chuleta sinóptica imprimible** (esfuerzo M)
+- Nuevo `core/cheatsheet.js` puro: agrupa los `facts` del parser (plazos y
+  números, definiciones, enumeraciones) por ley/artículo en una estructura de
+  tabla determinista, cada fila con su cita/`ref` (anclaje §1.3); testeado con
+  `node --test`.
+- Integra los requisitos acumulados del backlog #3 (it.5+it.6): opción de
+  chuleta personalizada cruzando con `failedIds`/`falseCertaintyIds` para
+  destacar lo que el usuario falla.
+- Vista imprimible con `@media print` (PDF vía diálogo del navegador),
+  funcional desde `file://`.
+
+**Idea 7 — Modo cadena (muerte súbita)** (esfuerzo S)
+- Lógica de cadena en núcleo puro (`core/chain.js` o extensión de `quiz.js`):
+  estado de racha, fin al primer fallo, anti-repetición dentro de la cadena,
+  récord global y por ley; RNG inyectable y tests `node --test`.
+- La pregunta que rompe la cadena entra en `failedIds` y como prioritaria del
+  repaso (mecanismo `priorityIds` de `buildReviewQuiz`, ya existente).
+- Récords persisten en `userState`/localStorage; solo preguntas activas del
+  banco: 0 créditos, 0 IA.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y
    aciertos con baja confianza. Baja de coste tras la it.5: el planificador de
    `srs.js` (cajas/intervalos) es reutilizable, y el termómetro (it.3) más el
    historial `perQuestion` (it.4) ya aportan los datos.
-2. **Memorización literal «texto desvanecido» / cloze «completa el artículo»**
-   (ideas subagente, it.4 + it.5, fusionadas): el artículo literal oculta
-   palabras clave (números, órganos, verbos detectados por el parser, que debe
-   exponer posiciones) en rondas de dificultad creciente; relleno con chips de
-   opciones y corrección coloreada sobre el texto completo. Gratis y sin IA;
-   núcleo puro (huecos deterministas, RNG inyectable).
-3. **Dossier/chuleta imprimible** (ideas subagente, it.5 + it.6, fusionadas —
-   dos propuestas independientes): vista `@media print` tras corregir o desde
-   el historial, con falladas y falsas certezas agrupadas por ley/artículo,
-   cita literal, explicación y tu error concreto; PDF vía diálogo de
-   impresión. Esfuerzo S, ideal como relleno de iteración.
-4. **Perfil de fallo** (idea subagente, it.6): clasifica los errores
-   acumulados (¿plazos? ¿negaciones? ¿términos?) comparando opción elegida y
-   correcta; perfil con consejo en «Mi cuenta». Requiere guardar el índice
-   elegido en `perQuestion`; los tags `mutation` de la it.5 abaratan la
-   clasificación en preguntas demo. Núcleo puro `errorProfile.js`.
-5. **Test por distribución de temas en la UI** — el core ya lo soporta
+2. **Perfil de fallo + mapa de confusiones** (ideas subagente, it.6 + it.7,
+   fusionadas): clasifica los errores acumulados (¿plazos? ¿negaciones?
+   ¿términos?) y detecta pares de conceptos confundidos recurrentes
+   comparando opción elegida y correcta, con mini-drills binarios de
+   discriminación (aportación it.7). Prerrequisito común: guardar el índice
+   elegido en `perQuestion` (`scoreQuiz` ya devuelve `given`); los tags
+   `mutation` de la it.5 abaratan la clasificación en preguntas demo. Núcleos
+   puros `errorProfile.js`/`confusions.js`.
+3. **Test por distribución de temas en la UI** — el core ya lo soporta
    (`buildDistributedQuiz`, «40 de A, 30 de B, 30 de C»); falta la UI de reparto.
-6. **Modo audio manos libres** (ideas subagente, it.5 + it.6, fusionadas):
-   speechSynthesis lee pregunta y opciones, respuesta con teclas, lectura de
-   la corrección; la propuesta de it.6 añade `core/audioQueue.js`
-   (secuenciación de cola testeable), que resuelve la objeción «sin core
-   testeable» de it.5. Persiste el riesgo de voces en español desiguales por
-   navegador y `file://`; validar con prueba manual.
-7. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
+4. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
+   propuestas independientes): speechSynthesis lee pregunta, opciones y
+   corrección, respuesta con teclas y fallback silencioso. Mantener el
+   `core/audioQueue.js` de it.6 (secuenciación testeable) frente al «sin core»
+   de it.7. Persiste el riesgo de voces en español desiguales por navegador y
+   `file://`; validar con prueba manual.
+5. **Plan de estudio con cuenta atrás al examen** (ideas subagente, it.6 +
+   it.7, fusionadas): fecha de examen + plan diario cruzando radiografía,
+   Leitner y readiness, con prescripción concreta («hoy: 10 preguntas de
+   arts. 13-18 + 12 tarjetas + reto»; aportación it.7) y semáforo
+   en-plazo/retrasado (`core/planner.js`). Baja prioridad hasta que
+   `readiness` tenga rodaje: un pronóstico poco fiable desmotiva. Esfuerzo L:
+   trocear si entra.
+6. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
    reales de una enumeración + 1 colado de otra; núcleo puro
    `intruderGame.js` sobre los `facts` del parser. Esperar a que la familia de
    juegos (reverse, trapGame, flashcards) demuestre uso antes de ampliarla.
-8. **Cuenta atrás al examen** (idea subagente, it.6): fecha de examen + ritmo
-   necesario + semáforo en-plazo/retrasado sobre radiografía y racha
-   (`core/planner.js`). Baja prioridad hasta que `readiness` tenga rodaje: un
-   pronóstico poco fiable desmotiva.
-9. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
-10. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
-    (cambiar de usuario activo y ver votos/recompensas cruzadas).
-11. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local a un
-    dispositivo», fusionadas): la variante local (alternarse las mismas
-    preguntas pasándose el móvil, marcador en vivo) es más barata que la
-    repetición grabada; aun así baja prioridad porque el «reto compartido»
-    (it.4) ya cubre la competición social a una fracción del coste.
-12. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
+7. **Explícalo antes de mirar** (idea subagente, it.7): al fallar (o acertar
+   dudando) el usuario escribe su razonamiento y la app lo compara con
+   `explanation`+`sourceQuote` (Jaccard) señalando conceptos ausentes; núcleo
+   puro `selfExplain.js`. Riesgo: el feedback por solape de tokens sobre texto
+   libre puede ser ruido; prototipar la calidad del feedback antes de
+   comprometer UI.
+8. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
+9. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
+   (cambiar de usuario activo y ver votos/recompensas cruzadas).
+10. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local» + it.7
+    «fantasma con ritmo real», fusionadas): la variante it.7 abarata la
+    repetición (secuencia de tiempos/aciertos reproducida con `timer.js` y
+    transportada en la URL de reto vía `share.js`), pero el «reto compartido»
+    (it.4) ya cubre la competición social a una fracción del coste; baja
+    prioridad salvo señal de demanda de usuarios.
+11. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
     con un prompt barato («¿es la marcada la única respuesta correcta según la fuente?»).
-13. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
+12. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
     «LPACAP» no fragmenten el banco.
-14. **PWA** (manifest + service worker) para estudiar offline en el móvil.
+13. **PWA** (manifest + service worker) para estudiar offline en el móvil.
 
 Nota de fusión (it.4): el antiguo punto «Mapa de calor del temario» sale del
 backlog al quedar absorbido por la «Radiografía del temario» seleccionada; el
@@ -276,3 +331,11 @@ propuestas independientes acumuladas) y el «Taller de autor / pregunta manual»
 fusiona con la «chuleta» (#3) y el «modo audio» con «manos libres» (#6), ambas
 segundas propuestas independientes; «perfil de fallo», «el intruso» y «cuenta
 atrás al examen» entran como puntos nuevos (#4, #7 y #8).
+
+Nota de fusión (it.7): el «cloze/texto desvanecido» (antiguo #2, tercera
+aparición) y el «dossier/chuleta imprimible» (antiguo #3, tercera aparición)
+salen del backlog al ser seleccionados; el «mapa de confusiones» se fusiona con
+«perfil de fallo» (#2), el «manos libres por voz» con «modo audio» (#4), el
+«plan de estudio» con «cuenta atrás al examen» (#5) y el «duelo fantasma con
+ritmo real» con «Duelo» (#10); «explícalo antes de mirar» entra como punto
+nuevo (#7).

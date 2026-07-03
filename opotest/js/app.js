@@ -288,9 +288,14 @@
     const pool = quizPool();
     const rng = C.createRng(Math.floor(Math.random() * 1e9));
     let questions;
+    if (mode === 'chain') {
+      if (pool.length < 3) return alert('La cadena necesita al menos 3 preguntas activas en el banco.');
+      return startChain(pool);
+    }
     if (mode === 'failed') {
-      // Las falsas certezas (fallos con «Seguro») se repasan primero
-      questions = C.buildReviewQuiz(pool, user.failedIds, count, rng, user.falseCertaintyIds);
+      // Primero lo más peligroso: falsas certezas y rompe-cadenas
+      const priority = (user.falseCertaintyIds || []).concat(user.chainBreakerIds || []);
+      questions = C.buildReviewQuiz(pool, user.failedIds, count, rng, priority);
       if (!questions.length) return alert('No tienes preguntas falladas pendientes de repaso. ¡Bien!');
     } else if (mode === 'reverse') {
       questions = C.buildReverseQuiz(pool, { count, rng });
@@ -348,6 +353,96 @@
       el('button', { class: 'btn', onclick: exitQuiz }, '✖ Cancelar'),
     ]));
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---------- Modo cadena (muerte súbita) ----------
+
+  let currentChain = null;
+
+  function startChain(pool) {
+    currentChain = { chain: C.createChain(), pool, rng: C.createRng(Math.floor(Math.random() * 1e9)) };
+    $('quizSetup').classList.add('hidden');
+    $('quizResult').classList.add('hidden');
+    nextChainStep();
+  }
+
+  function chainLeyKey() {
+    return $('quizLey').value || 'todas';
+  }
+
+  function nextChainStep() {
+    const { chain, pool, rng } = currentChain;
+    const question = C.nextChainQuestion(chain, pool, rng);
+    const area = $('quizArea');
+    area.innerHTML = '';
+    area.classList.remove('hidden');
+    if (!question) return endChain(null, null); // banco agotado: invicto
+    const records = user.chainRecords || {};
+    area.appendChild(el('div', { class: 'exam-header' }, [
+      el('div', { class: 'row' }, [
+        el('strong', {}, '🔗 Cadena: ' + chain.streak),
+        el('span', { class: 'spacer' }),
+        el('span', { class: 'hint' }, 'Récord: ' + (records.global || 0) +
+          ' · ' + chainLeyKey() + ': ' + ((records.byLey || {})[chainLeyKey()] || 0)),
+      ]),
+      el('p', { class: 'hint' }, 'Muerte súbita: al primer fallo se acabó.'),
+    ]));
+    const qBox = el('div', { class: 'quiz-question' }, [el('h3', {}, question.text)]);
+    question.options.forEach((opt, j) => {
+      qBox.appendChild(el('button', {
+        class: 'option trap-option',
+        onclick: () => answerChainStep(question, j),
+      }, String.fromCharCode(65 + j) + ') ' + opt));
+    });
+    qBox.appendChild(el('div', { class: 'row' }, [el('button', { class: 'btn', onclick: exitQuiz }, '✖ Abandonar')]));
+    area.appendChild(qBox);
+  }
+
+  function answerChainStep(question, answerIndex) {
+    const { chain } = currentChain;
+    const result = C.answerChain(chain, question, answerIndex);
+    // La cadena también alimenta el historial (visto/fallado/perQuestion)
+    C.updateHistory(user, C.scoreQuiz([question], [answerIndex]));
+    if (result.correct) {
+      saveUser();
+      return nextChainStep();
+    }
+    // Rompe-cadena: prioridad máxima en el repaso
+    user.chainBreakerIds = user.chainBreakerIds || [];
+    if (!user.chainBreakerIds.includes(question.id)) user.chainBreakerIds.push(question.id);
+    endChain(question, answerIndex);
+  }
+
+  function endChain(breakerQuestion, givenIndex) {
+    const { chain } = currentChain;
+    user.chainRecords = user.chainRecords || {};
+    const beaten = C.updateChainRecords(user.chainRecords, chain.streak, chainLeyKey());
+    saveUser();
+    const area = $('quizArea');
+    area.innerHTML = '';
+    const parts = [
+      el('div', { class: 'big' }, '🔗 ' + chain.streak),
+      el('div', { class: 'detail' }, breakerQuestion
+        ? 'Cadena rota tras ' + chain.streak + ' acierto' + (chain.streak === 1 ? '' : 's') + '.'
+        : '🏆 ¡Banco agotado sin fallar! Cadena invicta de ' + chain.streak + '.'),
+    ];
+    if (beaten.globalBeaten) parts.push(el('div', { class: 'detail warn' }, '🏅 ¡Nuevo récord global!'));
+    else if (beaten.leyBeaten) parts.push(el('div', { class: 'detail warn' }, '🏅 ¡Nuevo récord de ' + chainLeyKey() + '!'));
+    parts.push(el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
+      el('button', { class: 'btn primary', onclick: () => startChain(currentChain.pool) }, '🔗 Otra cadena'),
+      el('button', { class: 'btn', onclick: exitQuiz }, '↩ Salir'),
+    ]));
+    area.appendChild(el('div', { class: 'score-banner' }, parts));
+    if (breakerQuestion) {
+      const qBox = el('div', { class: 'quiz-question' }, [el('h3', {}, breakerQuestion.text)]);
+      breakerQuestion.options.forEach((opt, j) => {
+        const cls = j === breakerQuestion.correctIndex ? 'option correct' : (j === givenIndex ? 'option wrong' : 'option');
+        qBox.appendChild(el('div', { class: cls }, String.fromCharCode(65 + j) + ') ' + opt));
+      });
+      qBox.appendChild(el('div', { class: 'explanation' }, '💡 ' + breakerQuestion.explanation +
+        ' Esta pregunta entra con máxima prioridad en tu repaso de falladas.'));
+      area.appendChild(qBox);
+    }
   }
 
   // ---------- Simulacro cronometrado ----------
@@ -438,6 +533,7 @@
   function exitQuiz() {
     stopExamTicker();
     currentQuiz = null;
+    currentChain = null;
     $('quizArea').classList.add('hidden');
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.remove('hidden');
@@ -836,13 +932,138 @@
     const cards = C.cardsFromFacts(C.parse(text).facts);
     if (!cards.length) return alert('No se encontraron definiciones, plazos ni enumeraciones convertibles en tarjetas.');
     const res = C.addCards(user.srs, cards);
+    // Los mismos hechos alimentan los ejercicios «Completa el literal»
+    const deck = C.buildClozeDeck(text);
+    user.clozeDeck = user.clozeDeck || [];
+    const existing = new Set(user.clozeDeck.map((i) => i.id));
+    let clozeAdded = 0;
+    for (const item of deck) {
+      if (!existing.has(item.id)) {
+        user.clozeDeck.push(item);
+        clozeAdded++;
+      }
+    }
     saveUser();
-    alert('🧠 ' + res.added + ' flashcards nuevas' + (res.skipped ? ' (' + res.skipped + ' ya existían)' : '') + '. Repásalas en la pestaña «Repaso».');
+    alert('🧠 ' + res.added + ' flashcards nuevas' + (res.skipped ? ' (' + res.skipped + ' ya existían)' : '') +
+      (clozeAdded ? ' y ⌨️ ' + clozeAdded + ' ejercicios de completar' : '') + '. Todo en la pestaña «Repaso».');
   });
+
+  // ---------- Chuleta sinóptica imprimible ----------
+
+  $('cheatsheetBtn').addEventListener('click', () => {
+    const text = $('sourceText').value.trim();
+    if (text.length < 100) return alert('Pega antes un texto (o usa «Cargar ejemplo») para generar la chuleta.');
+    const sheet = C.buildCheatsheet(text);
+    if (!sheet.total) return alert('El texto no contiene plazos, definiciones ni enumeraciones que resumir.');
+    const weak = C.weakRefs(bank.active(), (user.failedIds || []).concat(user.falseCertaintyIds || []));
+    C.annotateWeak(sheet, weak);
+    renderCheatsheet(sheet, $('metaLey').value.trim());
+  });
+
+  function renderCheatsheet(sheet, ley) {
+    const old = document.getElementById('cheatsheetView');
+    if (old) old.remove();
+    const rows = (list, renderRow) => list.map((row) =>
+      el('tr', { class: row.weak ? 'weak-row' : '' }, renderRow(row)));
+
+    const view = el('div', { class: 'card cheatsheet', id: 'cheatsheetView' }, [
+      el('h2', {}, '🖨 Chuleta' + (ley ? ' — ' + ley : '')),
+      el('p', { class: 'hint no-print' }, 'Las filas destacadas 🔥 son artículos en los que fallas. «Imprimir» genera un PDF desde el navegador.'),
+      el('h3', {}, '⏱ Plazos y números (' + sheet.plazos.length + ')'),
+      el('table', {}, [el('tbody', {}, rows(sheet.plazos, (r) => [
+        el('td', { class: 'cs-val' }, (r.weak ? '🔥 ' : '') + r.value),
+        el('td', {}, r.sentence),
+        el('td', { class: 'cs-ref' }, r.ref || ''),
+      ]))]),
+      el('h3', {}, '📖 Definiciones (' + sheet.definiciones.length + ')'),
+      el('table', {}, [el('tbody', {}, rows(sheet.definiciones, (r) => [
+        el('td', { class: 'cs-val' }, (r.weak ? '🔥 ' : '') + r.term),
+        el('td', {}, r.definition),
+        el('td', { class: 'cs-ref' }, r.ref || ''),
+      ]))]),
+      el('h3', {}, '📋 Enumeraciones (' + sheet.enumeraciones.length + ')'),
+      el('div', {}, sheet.enumeraciones.map((e2) => el('div', { class: 'cs-enum' + (e2.weak ? ' weak-row' : '') }, [
+        el('strong', {}, (e2.weak ? '🔥 ' : '') + (e2.ref || 'Lista')),
+        el('ol', { class: 'cs-items' }, e2.items.map((it) => el('li', {}, it))),
+      ]))),
+      el('div', { class: 'row no-print' }, [
+        el('button', { class: 'btn primary', onclick: () => window.print() }, '🖨 Imprimir / guardar PDF'),
+        el('button', { class: 'btn', onclick: () => $('cheatsheetView').remove() }, '✖ Cerrar'),
+      ]),
+    ]);
+    $('generateResult').parentNode.appendChild(view);
+    view.scrollIntoView({ behavior: 'smooth' });
+  }
 
   function renderReview() {
     renderSrs();
     renderTrapIntro();
+    renderClozeInfo();
+  }
+
+  // ---------- Completa el literal (cloze) ----------
+
+  function renderClozeInfo() {
+    const deck = user.clozeDeck || [];
+    $('clozeInfo').textContent = deck.length
+      ? deck.length + ' ejercicios disponibles.'
+      : 'Sin ejercicios: créalos con «🧠 Crear flashcards» en Generar.';
+    $('clozeArea').innerHTML = '';
+  }
+
+  $('clozeStartBtn').addEventListener('click', () => {
+    const deck = user.clozeDeck || [];
+    if (!deck.length) return alert('Primero crea ejercicios con «🧠 Crear flashcards» en la pestaña Generar.');
+    const item = deck[Math.floor(Math.random() * deck.length)];
+    const blanks = parseInt($('clozeBlanks').value, 10);
+    const round = C.makeRound(item, blanks, C.createRng(Math.floor(Math.random() * 1e9)));
+    renderClozeRound(round);
+  });
+
+  function renderClozeRound(round) {
+    const area = $('clozeArea');
+    area.innerHTML = '';
+    const inputs = [];
+    const box = el('div', { class: 'flashcard' }, [
+      el('div', { class: 'meta' }, round.ref || 'Texto'),
+      el('div', { class: 'front' }, round.display),
+    ]);
+    round.answers.forEach((word, i) => {
+      let hintLevel = 0;
+      const input = el('input', { type: 'text', placeholder: 'Hueco ' + (i + 1) });
+      const hintBtn = el('button', {
+        class: 'btn small',
+        onclick: () => {
+          hintLevel = Math.min(2, hintLevel + 1);
+          hintSpan.textContent = C.hintFor(word, hintLevel);
+        },
+      }, '💡 Pista');
+      const hintSpan = el('span', { class: 'hint' }, '');
+      inputs.push(input);
+      box.appendChild(el('div', { class: 'row cloze-row' }, [input, hintBtn, hintSpan]));
+    });
+    box.appendChild(el('div', { class: 'row' }, [
+      el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          let allCorrect = true;
+          round.answers.forEach((word, i) => {
+            const res = C.checkClozeAnswer(word, inputs[i].value);
+            inputs[i].classList.remove('cloze-ok', 'cloze-bad');
+            inputs[i].classList.add(res.correct ? 'cloze-ok' : 'cloze-bad');
+            if (!res.correct) {
+              allCorrect = false;
+              inputs[i].value = inputs[i].value + '  →  ' + word + (res.close ? ' (¡casi!)' : '');
+            }
+          });
+          box.appendChild(el('div', { class: 'explanation' },
+            (allCorrect ? '✅ ¡Literal clavado!' : '📖 Revisa el literal completo arriba.') +
+            (round.ref ? ' (' + round.ref + ')' : '')));
+        },
+      }, '✔ Corregir'),
+      el('button', { class: 'btn', onclick: () => $('clozeStartBtn').click() }, '↻ Otro ejercicio'),
+    ]));
+    area.appendChild(box);
   }
 
   function renderSrs() {

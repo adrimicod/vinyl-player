@@ -371,6 +371,34 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .credit-log .delta.pos { color: var(--ok); }
 .credit-log .delta.neg { color: var(--bad); }
 
+/* ---- Cloze ---- */
+.cloze-row { align-items: center; }
+.cloze-row input { max-width: 320px; }
+input.cloze-ok { outline: 2px solid var(--ok); }
+input.cloze-bad { outline: 2px solid var(--bad); }
+
+/* ---- Chuleta ---- */
+.cheatsheet table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 0.85rem; }
+.cheatsheet td { border-bottom: 1px solid #26314a; padding: 6px 8px; vertical-align: top; }
+.cheatsheet .cs-val { font-weight: 700; white-space: nowrap; }
+.cheatsheet .cs-ref { color: var(--text-dim); white-space: nowrap; font-size: 0.78rem; }
+.cheatsheet h3 { margin: 14px 0 4px; font-size: 0.95rem; }
+.cheatsheet .cs-enum { margin: 8px 0; }
+.cheatsheet .cs-items { margin: 4px 0 0 22px; font-size: 0.85rem; }
+.cheatsheet .weak-row { background: rgba(241, 196, 15, 0.08); }
+
+@media print {
+  body > *:not(main), .tabs, .app-header, .app-footer { display: none !important; }
+  main > *:not(#panel-generate), #panel-generate > .card:not(#cheatsheetView) { display: none !important; }
+  .panel { display: block !important; }
+  #cheatsheetView { display: block !important; border: none; background: #fff; color: #000; }
+  #cheatsheetView .no-print { display: none !important; }
+  .cheatsheet td { border-bottom: 1px solid #ccc; }
+  .cheatsheet .cs-ref { color: #555; }
+  .cheatsheet .weak-row { background: #fdf3d0; }
+  body { background: #fff; color: #000; }
+}
+
 .app-footer {
   text-align: center;
   color: var(--text-dim);
