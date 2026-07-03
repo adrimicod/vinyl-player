@@ -38,6 +38,33 @@
 
 La F0 (este repositorio) sirve para **validar la mecánica completa** del producto sin coste de infraestructura: todo el dominio (generación, deduplicación, calidad, créditos, corrección de tests) está implementado como módulos puros y testeados, listos para moverse a un backend en F1.
 
+### 2.1 Flujo de cada iteración de desarrollo
+
+Cada iteración del bucle de mejora arranca con una fase creativa ejecutada por
+dos subagentes independientes, antes de tocar código:
+
+```
+┌────────────────────────┐    ┌──────────────────────────────┐    ┌─────────────────────┐
+│ 1 · SUBAGENTE IDEAS    │ →  │ 2 · SUBAGENTE EVALUADOR      │ →  │ 3 · DESARROLLO      │
+│ Propone 5-8 ideas      │    │ Puntúa valor/coste/encaje,   │    │ Implementa lo       │
+│ originales (producto,  │    │ selecciona 1-3 y las integra │    │ seleccionado, tests │
+│ UX, generador, comuni- │    │ en el plan de la iteración   │    │ de regresión, E2E,  │
+│ dad…) sin ver el       │    │ (MEJORAS.md); el resto va    │    │ commit + push       │
+│ backlog actual         │    │ al backlog con su veredicto  │    │                     │
+└────────────────────────┘    └──────────────────────────────┘    └─────────────────────┘
+```
+
+Reglas del flujo:
+- El **subagente de ideas** trabaja sin ver el backlog (para no anclarse) — solo
+  conoce la visión del producto (este plan) y el estado actual del código. Se le
+  pide originalidad: al menos la mitad de las ideas no deben ser evolutivas.
+- El **subagente evaluador** puntúa cada idea (impacto usuario, esfuerzo F0,
+  encaje con la visión y con los principios §1.3, riesgo) y decide qué entra en
+  la iteración. Su veredicto queda registrado en MEJORAS.md, también para las
+  descartadas (un descarte razonado es información valiosa).
+- La fase 3 solo implementa lo seleccionado, con sus tests, y cierra con la
+  suite completa en verde antes del commit.
+
 ---
 
 ## 3. Arquitectura del prototipo (F0)
