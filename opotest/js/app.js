@@ -228,7 +228,9 @@
       select.appendChild(el('option', { value: ley }, ley + ' (' + n + ')'));
     }
     select.value = previous;
-    $('failedCount').textContent = user.failedIds.length;
+    const failedOpt = $('quizMode').querySelector('option[value="failed"]');
+    failedOpt.textContent = 'Repaso de falladas (' + user.failedIds.length +
+      (user.falseCertaintyIds && user.falseCertaintyIds.length ? ', ' + user.falseCertaintyIds.length + ' falsas certezas' : '') + ')';
     updateQuizPoolInfo();
   }
   $('quizLey').addEventListener('change', updateQuizPoolInfo);
@@ -250,16 +252,22 @@
 
   $('startQuizBtn').addEventListener('click', () => {
     const count = parseInt($('quizCount').value, 10);
+    const mode = $('quizMode').value;
     const pool = quizPool();
+    const rng = C.createRng(Math.floor(Math.random() * 1e9));
     let questions;
-    if ($('quizOnlyFailed').checked) {
-      questions = C.buildReviewQuiz(pool, user.failedIds, count);
+    if (mode === 'failed') {
+      // Las falsas certezas (fallos con «Seguro») se repasan primero
+      questions = C.buildReviewQuiz(pool, user.failedIds, count, rng, user.falseCertaintyIds);
       if (!questions.length) return alert('No tienes preguntas falladas pendientes de repaso. ¡Bien!');
+    } else if (mode === 'reverse') {
+      questions = C.buildReverseQuiz(pool, { count, rng });
+      if (!questions.length) return alert('El modo inverso necesita preguntas en el banco con artículo y ley identificados. Genera algunas primero.');
     } else {
-      questions = C.buildQuiz(pool, { count, seenIds: user.seenIds, rng: C.createRng(Math.floor(Math.random() * 1e9)) }).questions;
+      questions = C.buildQuiz(pool, { count, seenIds: user.seenIds, rng }).questions;
       if (!questions.length) return alert('No hay preguntas en el banco para ese filtro. Genera algunas primero.');
     }
-    currentQuiz = { questions, submitted: false };
+    currentQuiz = { questions, submitted: false, mode };
     renderQuizArea();
   });
 
@@ -270,6 +278,7 @@
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.add('hidden');
 
+    currentQuiz.confidences = currentQuiz.questions.map(() => null);
     currentQuiz.questions.forEach((q, i) => {
       const qBox = el('div', { class: 'quiz-question', id: 'qq' + i }, [
         el('h3', {}, [el('span', { class: 'qnum' }, (i + 1) + '.'), q.text]),
@@ -280,6 +289,7 @@
           String.fromCharCode(65 + j) + ') ' + opt,
         ]));
       });
+      qBox.appendChild(confidenceSelector(i));
       area.appendChild(qBox);
     });
     area.appendChild(el('div', { class: 'row' }, [
@@ -287,6 +297,30 @@
       el('button', { class: 'btn', onclick: exitQuiz }, '✖ Cancelar'),
     ]));
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Termómetro de confianza: «¿Cómo de seguro estás?» por pregunta. */
+  const CONFIDENCE_LEVELS = [
+    { value: 'sure', label: '😎 Seguro' },
+    { value: 'doubt', label: '🤔 Dudo' },
+    { value: 'guess', label: '🎲 Adivino' },
+  ];
+
+  function confidenceSelector(i) {
+    const box = el('div', { class: 'confidence' }, [el('span', { class: 'conf-label' }, 'Confianza:')]);
+    for (const level of CONFIDENCE_LEVELS) {
+      box.appendChild(el('button', {
+        class: 'btn small conf-btn',
+        'data-conf': level.value,
+        onclick: (ev) => {
+          if (currentQuiz.submitted) return;
+          currentQuiz.confidences[i] = level.value;
+          box.querySelectorAll('.conf-btn').forEach((b) => b.classList.remove('selected'));
+          ev.currentTarget.classList.add('selected');
+        },
+      }, level.label));
+    }
+    return box;
   }
 
   function exitQuiz() {
@@ -303,9 +337,12 @@
       const checked = document.querySelector('input[name="q' + i + '"]:checked');
       return checked ? parseInt(checked.value, 10) : null;
     });
-    const scored = C.scoreQuiz(currentQuiz.questions, answers);
+    const scored = C.scoreQuiz(currentQuiz.questions, answers, { confidences: currentQuiz.confidences });
     currentQuiz.submitted = true;
-    C.updateHistory(user, scored);
+    // Los modos efímeros (inverso, test compartido sin importar) no tocan el
+    // historial: sus preguntas no viven en el banco.
+    const ephemeral = currentQuiz.mode === 'reverse' || currentQuiz.mode === 'shared';
+    if (!ephemeral) C.updateHistory(user, scored);
     saveUser();
 
     // Marcar visualmente cada pregunta
@@ -316,23 +353,96 @@
         else if (answers[i] === j) optEl.classList.add('wrong');
         optEl.querySelector('input').disabled = true;
       });
+      if (scored.results[i].falseCertainty) {
+        qBox.appendChild(el('div', { class: 'false-certainty' },
+          '🔥 Falsa certeza: estabas seguro y era incorrecta. Esta es de las que suspenden — prioridad en tu repaso.'));
+      }
       qBox.appendChild(el('div', { class: 'explanation' }, '💡 ' + q.explanation));
-      qBox.appendChild(qualityActions(q));
+      if (bank.get(q.id)) qBox.appendChild(qualityActions(q));
     });
 
+    const detailParts = ['✅ ' + scored.correct + ' aciertos · ❌ ' + scored.wrong + ' fallos · ⚪ ' + scored.blank +
+      ' en blanco · (cada fallo resta 1/3, baremo de oposición)'];
     const banner = $('quizResult');
     banner.innerHTML = '';
     banner.classList.remove('hidden');
-    banner.appendChild(el('div', { class: 'score-banner' }, [
+    const bannerChildren = [
       el('div', { class: 'big' }, scored.score10.toFixed(2) + ' / 10'),
-      el('div', { class: 'detail' },
-        '✅ ' + scored.correct + ' aciertos · ❌ ' + scored.wrong + ' fallos · ⚪ ' + scored.blank +
-        ' en blanco · (cada fallo resta 1/3, baremo de oposición)'),
-      el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
-        el('button', { class: 'btn primary', onclick: exitQuiz }, '↩ Nuevo test'),
-      ]),
+      el('div', { class: 'detail' }, detailParts.join('')),
+    ];
+    if (scored.falseCertainties > 0) {
+      bannerChildren.push(el('div', { class: 'detail warn' },
+        '🔥 ' + scored.falseCertainties + ' falsa' + (scored.falseCertainties > 1 ? 's' : '') +
+        ' certeza' + (scored.falseCertainties > 1 ? 's' : '') +
+        ' — fallos respondidos con «Seguro». Se priorizan en el repaso de falladas.'));
+    }
+    bannerChildren.push(el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
+      el('button', { class: 'btn primary', onclick: exitQuiz }, '↩ Nuevo test'),
+      el('button', { class: 'btn', onclick: shareCurrentQuiz }, '🔗 Compartir este test'),
     ]));
+    banner.appendChild(el('div', { class: 'score-banner' }, bannerChildren));
     banner.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  /** Compartir el test actual: las preguntas viajan en el fragmento de la URL. */
+  function shareCurrentQuiz() {
+    if (!currentQuiz) return;
+    try {
+      const fragment = C.encodeShare(currentQuiz.questions);
+      const url = location.href.split('#')[0] + '#' + fragment;
+      const done = () => alert('Enlace copiado. Cualquiera que lo abra podrá hacer este test e importar las preguntas a su banco.');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done, () => prompt('Copia el enlace del test:', url));
+      } else {
+        prompt('Copia el enlace del test:', url);
+      }
+    } catch (e) {
+      alert('No se pudo compartir: ' + e.message);
+    }
+  }
+
+  /** Si la URL trae un test compartido (#share=…), ofrecerlo al usuario. */
+  function handleIncomingShare() {
+    if (!location.hash || !location.hash.includes('share=')) return;
+    let decoded;
+    try {
+      decoded = C.decodeShare(location.hash);
+    } catch (e) {
+      alert('Test compartido: ' + e.message);
+      return;
+    }
+    document.querySelector('[data-tab="quiz"]').click();
+    const setup = $('quizSetup');
+    const offer = el('div', { class: 'card share-offer', id: 'shareOffer' }, [
+      el('h2', {}, '📩 Te han compartido un test'),
+      el('p', { class: 'hint' }, decoded.questions.length + ' preguntas' +
+        (decoded.skipped ? ' (' + decoded.skipped + ' descartadas por inválidas)' : '') +
+        (decoded.questions[0].topic && decoded.questions[0].topic.ley ? ' · ' + decoded.questions[0].topic.ley : '')),
+      el('div', { class: 'row wrap' }, [
+        el('button', {
+          class: 'btn primary',
+          onclick: () => {
+            currentQuiz = {
+              questions: decoded.questions.map((q, i) => Object.assign({ id: 'sh-' + i }, q)),
+              submitted: false,
+              mode: 'shared',
+            };
+            renderQuizArea();
+          },
+        }, '▶ Hacer este test'),
+        el('button', {
+          class: 'btn',
+          onclick: () => {
+            const res = bank.importJSON(JSON.stringify({ questions: decoded.questions }));
+            alert('Importación: ' + res.added + ' preguntas añadidas a tu banco, ' + res.skipped + ' descartadas (duplicadas o inválidas).');
+            $('shareOffer').remove();
+            renderQuizSetup();
+          },
+        }, '⬇ Importar a mi banco'),
+        el('button', { class: 'btn', onclick: () => $('shareOffer').remove() }, '✖ Descartar'),
+      ]),
+    ]);
+    setup.parentNode.insertBefore(offer, setup);
   }
 
   /** Botones 👍/👎/errata bajo cada pregunta corregida (evaluación comunitaria). */
@@ -485,4 +595,5 @@
   renderCredits();
   renderQuizSetup();
   saveUser();
+  handleIncomingShare();
 })();

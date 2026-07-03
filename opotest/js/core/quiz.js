@@ -61,35 +61,48 @@
     return { questions: gen.shuffle(all, rng), reused: reusedTotal, perTopic };
   }
 
+  /** Niveles de confianza del termómetro metacognitivo. */
+  const CONFIDENCE = { SURE: 'sure', DOUBT: 'doubt', GUESS: 'guess' };
+
   /**
    * Corrige un test.
    * @param {Array} questions preguntas del test
    * @param {Array<number|null>} answers índice elegido por pregunta (null = en blanco)
-   * @param {object} [opts] {penalty: fracción que descuenta cada fallo, por defecto 1/3 (baremo habitual)}
-   * @returns {{correct, wrong, blank, total, score10, results: Array}}
+   * @param {object} [opts] {penalty: fracción que descuenta cada fallo (1/3 por defecto),
+   *                         confidences: Array<'sure'|'doubt'|'guess'|null> por pregunta}
+   * @returns {{correct, wrong, blank, total, score10, falseCertainties, results: Array}}
+   *   Una «falsa certeza» es un fallo respondido con confianza 'sure': el
+   *   conocimiento erróneo que más suspende oposiciones.
    */
   function scoreQuiz(questions, answers, opts) {
     const penalty = opts && typeof opts.penalty === 'number' ? opts.penalty : 1 / 3;
+    const confidences = (opts && opts.confidences) || [];
     let correct = 0;
     let wrong = 0;
     let blank = 0;
     const results = questions.map((q, i) => {
       const answer = answers[i];
+      const confidence = confidences[i] || null;
+      let r;
       if (answer === null || answer === undefined) {
         blank++;
-        return { id: q.id, outcome: 'blank', correctIndex: q.correctIndex };
-      }
-      if (answer === q.correctIndex) {
+        r = { id: q.id, outcome: 'blank', correctIndex: q.correctIndex };
+      } else if (answer === q.correctIndex) {
         correct++;
-        return { id: q.id, outcome: 'correct', correctIndex: q.correctIndex };
+        r = { id: q.id, outcome: 'correct', correctIndex: q.correctIndex };
+      } else {
+        wrong++;
+        r = { id: q.id, outcome: 'wrong', correctIndex: q.correctIndex, given: answer };
       }
-      wrong++;
-      return { id: q.id, outcome: 'wrong', correctIndex: q.correctIndex, given: answer };
+      if (confidence) r.confidence = confidence;
+      if (r.outcome === 'wrong' && confidence === CONFIDENCE.SURE) r.falseCertainty = true;
+      return r;
     });
     const total = questions.length;
     const raw = total ? ((correct - wrong * penalty) / total) * 10 : 0;
     const score10 = Math.max(0, Math.round(raw * 100) / 100);
-    return { correct, wrong, blank, total, score10, results };
+    const falseCertainties = results.filter((r) => r.falseCertainty).length;
+    return { correct, wrong, blank, total, score10, falseCertainties, results };
   }
 
   /**
@@ -99,6 +112,7 @@
   function updateHistory(userState, scored) {
     userState.seenIds = userState.seenIds || [];
     userState.failedIds = userState.failedIds || [];
+    userState.falseCertaintyIds = userState.falseCertaintyIds || [];
     userState.stats = userState.stats || { tests: 0, correct: 0, wrong: 0, blank: 0 };
     for (const r of scored.results) {
       // Mover al final: es la más recientemente vista
@@ -111,6 +125,13 @@
       } else if (r.outcome === 'correct' && fIdx !== -1) {
         userState.failedIds.splice(fIdx, 1); // acertada: sale del repaso
       }
+      // Falsas certezas: entran al fallar con «Seguro», salen al acertar
+      const fcIdx = userState.falseCertaintyIds.indexOf(r.id);
+      if (r.falseCertainty) {
+        if (fcIdx === -1) userState.falseCertaintyIds.push(r.id);
+      } else if (r.outcome === 'correct' && fcIdx !== -1) {
+        userState.falseCertaintyIds.splice(fcIdx, 1);
+      }
     }
     userState.stats.tests++;
     userState.stats.correct += scored.correct;
@@ -119,15 +140,21 @@
     return userState;
   }
 
-  /** Test de repaso: solo preguntas falladas previamente. */
-  function buildReviewQuiz(activeQuestions, failedIds, count, rng) {
+  /**
+   * Test de repaso: solo preguntas falladas previamente. Las falsas certezas
+   * (priorityIds) van primero: son el conocimiento erróneo más peligroso.
+   */
+  function buildReviewQuiz(activeQuestions, failedIds, count, rng, priorityIds) {
+    const random = rng || gen.createRng(13579);
     const byId = new Map(activeQuestions.map((q) => [q.id, q]));
+    const priority = new Set(priorityIds || []);
     const pool = (failedIds || []).map((id) => byId.get(id)).filter(Boolean);
-    const shuffled = gen.shuffle(pool, rng || gen.createRng(13579));
-    return shuffled.slice(0, count || shuffled.length);
+    const first = gen.shuffle(pool.filter((q) => priority.has(q.id)), random);
+    const rest = gen.shuffle(pool.filter((q) => !priority.has(q.id)), random);
+    return first.concat(rest).slice(0, count || pool.length);
   }
 
-  const api = { buildQuiz, buildDistributedQuiz, scoreQuiz, updateHistory, buildReviewQuiz };
+  const api = { buildQuiz, buildDistributedQuiz, scoreQuiz, updateHistory, buildReviewQuiz, CONFIDENCE };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

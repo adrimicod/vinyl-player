@@ -173,6 +173,33 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
   margin-top: 8px;
   border-radius: 0 8px 8px 0;
 }
+.confidence {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.conf-label { color: var(--text-dim); font-size: 0.78rem; }
+.conf-btn.selected {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #fff;
+}
+
+.false-certainty {
+  font-size: 0.85rem;
+  color: var(--warn);
+  background: rgba(241, 196, 15, 0.1);
+  border-left: 3px solid var(--warn);
+  padding: 8px 12px;
+  margin-top: 8px;
+  border-radius: 0 8px 8px 0;
+}
+.detail.warn { color: var(--warn); margin-top: 6px; }
+
+.share-offer { border: 1px solid var(--accent); }
+
 .q-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .q-actions .voted { color: var(--ok); font-size: 0.8rem; }
 

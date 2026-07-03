@@ -89,8 +89,12 @@
               <option>5</option><option selected>10</option><option>20</option><option>30</option>
             </select>
           </label>
-          <label class="checkbox">
-            <input type="checkbox" id="quizOnlyFailed"> Solo repaso de falladas (<span id="failedCount">0</span>)
+          <label>Modo
+            <select id="quizMode">
+              <option value="normal" selected>Normal</option>
+              <option value="failed">Repaso de falladas</option>
+              <option value="reverse">Inverso: ¿qué artículo es?</option>
+            </select>
           </label>
           <button class="btn primary" id="startQuizBtn">▶ Empezar test</button>
         </div>
@@ -145,6 +149,8 @@
   <script src="js/core/quality.js"></script>
   <script src="js/core/credits.js"></script>
   <script src="js/core/quiz.js"></script>
+  <script src="js/core/share.js"></script>
+  <script src="js/core/reverse.js"></script>
   <script src="js/aiProvider.js"></script>
   <script src="js/app.js"></script>
 </body>

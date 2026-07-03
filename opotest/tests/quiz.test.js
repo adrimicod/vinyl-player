@@ -94,3 +94,44 @@ test('buildReviewQuiz devuelve solo falladas aún activas', () => {
   const ids = review.map((q) => q.id).sort();
   assert.deepEqual(ids, ['q1', 'q3']);
 });
+
+// ---- Termómetro de confianza (iteración 3) ----
+
+test('scoreQuiz marca las falsas certezas (fallo con confianza «Seguro»)', () => {
+  const questions = makeQuestions(4).map((q) => Object.assign(q, { correctIndex: 0 }));
+  const answers = [0, 1, 1, null];
+  const confidences = ['sure', 'sure', 'guess', 'sure'];
+  const scored = quiz.scoreQuiz(questions, answers, { confidences });
+  assert.equal(scored.falseCertainties, 1, 'solo el fallo con «sure» es falsa certeza');
+  assert.equal(scored.results[1].falseCertainty, true);
+  assert.equal(scored.results[0].falseCertainty, undefined, 'un acierto seguro no es falsa certeza');
+  assert.equal(scored.results[3].falseCertainty, undefined, 'un blanco no es falsa certeza');
+  assert.equal(scored.results[2].confidence, 'guess');
+});
+
+test('scoreQuiz sin confianzas funciona igual que antes (retrocompatible)', () => {
+  const questions = makeQuestions(2).map((q) => Object.assign(q, { correctIndex: 0 }));
+  const scored = quiz.scoreQuiz(questions, [0, 1]);
+  assert.equal(scored.falseCertainties, 0);
+  assert.ok(!('confidence' in scored.results[0]));
+});
+
+test('updateHistory registra y limpia las falsas certezas', () => {
+  const questions = makeQuestions(2).map((q) => Object.assign(q, { correctIndex: 0 }));
+  const user = {};
+  quiz.updateHistory(user, quiz.scoreQuiz(questions, [1, 0], { confidences: ['sure', 'sure'] }));
+  assert.deepEqual(user.falseCertaintyIds, ['q0']);
+  // La acierta después → sale de las falsas certezas (y de falladas)
+  quiz.updateHistory(user, quiz.scoreQuiz([questions[0]], [0]));
+  assert.deepEqual(user.falseCertaintyIds, []);
+});
+
+test('buildReviewQuiz prioriza las falsas certezas sobre el resto de falladas', () => {
+  const questions = makeQuestions(6);
+  const failed = ['q0', 'q1', 'q2', 'q3', 'q4'];
+  const falseCertainties = ['q3', 'q4'];
+  const review = quiz.buildReviewQuiz(questions, failed, 3, gen.createRng(5), falseCertainties);
+  assert.equal(review.length, 3);
+  const firstTwo = review.slice(0, 2).map((q) => q.id).sort();
+  assert.deepEqual(firstTwo, ['q3', 'q4'], 'las falsas certezas van primero');
+});
