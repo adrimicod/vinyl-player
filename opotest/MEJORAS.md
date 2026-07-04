@@ -550,6 +550,36 @@ esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
 - Degradación explícita testeada: banco sin pares suficientes → «sin parejas
   confundibles todavía», sin romper la app ni ofrecer el modo vacío.
 
+## Iteración 11 — Rama EXPLORAR: la sesión de estudio guiada (en curso)
+
+**Decisión del agente director**: EXPLORAR.
+La superficie nueva de it.10 (profile, staleness, confusables + wiring en Mi
+cuenta, Repaso y radiografía) aún no tiene auditoría, pero una sola iteración
+de exploración no acumula la deuda que motivó it.8 (aquella pasada llegó tras
+cinco iteraciones seguidas y rindió 27 hallazgos): la suite está en verde
+211/211 (`node --test`, 22 ficheros, +13 tests aportados por it.10) y los tres
+módulos entraron con núcleo puro testeado, así que la señal pro-pulir «≥2-3
+iteraciones seguidas explorando» no se cumple. Sí se cumplen las pro-explorar:
+el backlog de pulido es menor (#14-#18 son residuales anotados como F1, un
+único PROBABLE sin confirmar que exige proveedor real, y barridos XS) y hay
+huecos de valor con señal fuerte sin atender — el #1 del backlog («Plan de
+estudio: sesión a medida», cuatro señales acumuladas it.6+it.7+it.10×2) es la
+familia más propuesta del proyecto, seguido de «Modo audio» (tres señales) y
+«Distribución por temas» (core `buildDistributedQuiz` ya hecho, falta solo UI).
+Siendo esta la penúltima iteración del ciclo, explorar ahora y reservar it.12
+para una pasada PULIR que audite junta la superficie de it.10+it.11 deja el
+ciclo bien cerrado; el orden inverso lo terminaría con features sin auditar.
+El ratio acumulado queda en 6 explorar : 2 pulir, asumible solo con it.12
+apuntada a consolidar.
+**Foco encargado a los agentes de la rama**: la sesión de estudio guiada —
+convertir todo lo que la app ya sabe del opositor (historial, falladas, falsas
+certezas, SRS, staleness, perfil por tipo, radiografía) en la decisión «qué
+estudiar ahora mismo y por qué»; el subagente de ideas propone sin ver el
+backlog funcionalidades de planificación/orquestación de la sesión (0 IA /
+0 créditos preferente, núcleo puro testeable), y el evaluador puntúa contra
+§1.3 cruzando con las señales acumuladas del backlog, dimensionando el lote en
+S-M: la penúltima iteración no abre frentes L que it.12 no pueda consolidar.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Plan de estudio: sesión a medida + cuenta atrás al examen** (ideas
