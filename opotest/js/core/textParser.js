@@ -63,7 +63,10 @@
   }
 
   const NUMBER_RE = /\b\d+(?:[.,]\d+)?\b/g;
-  const DEFINITION_RE = /se\s+entiende(?:n)?\s+por\s+([^,:]{3,60})[,:]?\s+(.{15,300})/i;
+  // El término acaba en coma/dos puntos O ante el determinante que abre la
+  // definición («se entiende por vehículo de motor TODO vehículo…»): sin
+  // este corte, las definiciones sin coma producían términos de 60 caracteres.
+  const DEFINITION_RE = /se\s+entiende(?:n)?\s+por\s+(.{3,60}?)\s*(?:[,:]|\s(?=(?:todo|toda|todos|todas|aquel|aquella|aquellos|aquellas|cualquier|el|la|los|las|un|una)\s))\s*(.{15,300})/i;
   const ENUM_ITEM_RE = /(?:^|\n)\s*([a-z])\)\s+([^\n]{5,200})/gi;
 
   /** Normalización ligera para comparar frases (sin depender de similarity.js). */

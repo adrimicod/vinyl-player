@@ -121,6 +121,23 @@ test('gapReplace respeta contornos: siglas, decimales y números vecinos (Q4)', 
   );
 });
 
+test('las definiciones sin coma cortan el término ante el determinante (Q5)', () => {
+  const { facts } = parser.parse(
+    'Artículo 1. Definiciones.\nSe entiende por vehículo de motor todo vehículo provisto de motor para su propulsión destinado a circular por las vías públicas.'
+  );
+  const def = facts.find((f) => f.type === 'definition');
+  assert.ok(def, 'debe detectar la definición');
+  assert.equal(def.term, 'vehículo de motor');
+  assert.ok(def.definition.startsWith('todo vehículo provisto'));
+});
+
+test('las definiciones con coma no cambian (regresión Q5)', () => {
+  const { facts } = parser.parse(SAMPLE_LAW);
+  const def = facts.find((f) => f.type === 'definition');
+  assert.equal(def.term, 'interesado');
+  assert.ok(def.definition.startsWith('aquella persona'));
+});
+
 test('los hechos llevan la referencia del artículo al que pertenecen', () => {
   const { facts } = parser.parse(SAMPLE_LAW);
   const numberFacts = facts.filter((f) => f.type === 'number');

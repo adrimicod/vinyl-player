@@ -29,13 +29,18 @@
     return s.length <= max ? s : s.slice(0, max - 1).trimEnd() + '…';
   }
 
-  /** Distractores extra perturbando el número de artículo (para bancos pequeños). */
+  /**
+   * Distractores extra para bancos pequeños: SOLO artículos adyacentes
+   * (n±1..3), que existen en casi cualquier ley. Los saltos grandes
+   * (n×2, n+10) inventaban preceptos inverosímiles que se descartan solos.
+   */
   function perturbedLabels(q, rng) {
     const m = String(q.text || '').match(ARTICLE_RE);
     if (!m) return [];
     const n = parseInt(m[1], 10);
     const ley = (q.topic && q.topic.ley) || null;
-    return gen.perturbNumber(String(n), rng).map((alt) =>
+    const neighbors = [n - 2, n - 1, n + 1, n + 2, n + 3].filter((x) => x > 0);
+    return gen.shuffle(neighbors, rng).map((alt) =>
       'Artículo ' + alt + (ley ? ' — ' + ley : '')
     );
   }

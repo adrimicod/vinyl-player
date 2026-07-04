@@ -22,6 +22,28 @@ test('perturbNumber respeta decimales con coma', () => {
   assert.ok(alts.every((a) => !a.includes('.')));
 });
 
+test('los distractores decimales conservan los decimales del original (Q7)', () => {
+  const alts = gen.perturbNumber('15,5', gen.createRng(1));
+  assert.ok(alts.length >= 3);
+  for (const a of alts) {
+    assert.match(a, /^\d+,\d$/, 'formato delator: ' + a);
+  }
+});
+
+test('sin n×2 inverosímil para números grandes (Q7: nada de 240 km/h)', () => {
+  const alts = gen.perturbNumber('120', gen.createRng(1));
+  assert.ok(!alts.includes('240'), alts.join(','));
+  assert.ok(gen.perturbNumber('20', gen.createRng(1)).includes('40'), 'los pequeños sí duplican');
+});
+
+test('mutateNumber no produce «1» junto a plurales (Q7)', () => {
+  // Con original 2, «1» rompería la concordancia («1 años»)
+  for (let seed = 1; seed <= 20; seed++) {
+    const m = gen.mutateNumber('con una antigüedad inferior a 2 años en el puesto de trabajo', gen.createRng(seed));
+    assert.ok(m && !/\b1 años/.test(m), 'concordancia rota: ' + m);
+  }
+});
+
 test('buildOptions devuelve 4 opciones únicas con la correcta incluida', () => {
   const built = gen.buildOptions('6 meses', ['3 meses', '6 MESES', '12 meses', '1 mes', '2 meses'], gen.createRng(7));
   assert.equal(built.options.length, 4);
@@ -124,6 +146,16 @@ test('las preguntas mezclan tipos distintos cuando el texto lo permite', () => {
   const { questions } = gen.generateQuestions(SAMPLE_LAW, SAMPLE_TOPIC, 10, { seed: 42 });
   const kinds = new Set(questions.map((q) => q.kind));
   assert.ok(kinds.size >= 2, 'esperaba variedad de tipos, solo salió: ' + [...kinds].join(','));
+});
+
+test('sin fuga de respuestas: ninguna correcta se repite en el lote (verificación it.8)', () => {
+  const withEnum = SAMPLE_LAW; // contiene la enumeración del artículo 3
+  for (const seed of [1, 2, 3]) {
+    const { questions } = gen.generateQuestions(withEnum, SAMPLE_TOPIC, 20, { seed });
+    const corrects = questions.map((q) => q.options[q.correctIndex]);
+    assert.equal(new Set(corrects).size, corrects.length,
+      'correcta repetida en el lote (semilla ' + seed + ')');
+  }
 });
 
 test('texto sin sustancia no genera preguntas', () => {

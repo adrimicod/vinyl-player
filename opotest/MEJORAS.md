@@ -406,6 +406,70 @@ para flujos de UI, que era el encargo expreso del director).
   manteniendo el historial por pregunta para radiografía/readiness; con test de
   regresión: cadena de 30 → `stats.tests` +1, `perQuestion` con 30 registros.
 
+## Iteración 9 — Rama PULIR: segunda tanda del generador y robustez de estado/feedback (completada)
+
+**Decisión del agente director**: PULIR.
+Aunque «una iteración de pulido acaba de cerrar» es señal pro-explorar (§2.1) y la
+suite está en verde (190/190 tras el lote it.8), pesa más la señal pro-pulir de
+«hallazgos pendientes de QA»: quedan 7 hallazgos CONFIRMADOS de la auditoría it.8
+sin arreglar (#14-#20), cuatro de ellos (Q5/Q7/Q8/Q9) en el generador — el corazón
+del producto según §1.3 («calidad sobre cantidad») — y el propio priorizador los
+marcó «primeras candidatas para it.9», además de pedir verificar el efecto medible
+de Q1+Q2/Q6+Q3; su corte fue por capacidad del lote, no por falta de valor. A ello
+se suman U4 (gravedad 4: recargar pierde el simulacro, la feature insignia del plan
+Pro) y un ratio acumulado de 5 explorar : 1 pulir tras ~13 features: la condición
+pro-explorar «el backlog de pulido está vacío o es menor» NO se cumple. Segunda y
+última pasada de consolidación antes de volver a explorar.
+**Foco encargado a los agentes de la rama**: cerrar la deuda de auditoría it.8 en
+dos frentes — (1) calidad del generador, segunda tanda (backlog #14: Q5 términos
+basura de `DEFINITION_RE`, Q7 distractores numéricos sin concordancia o delatores,
+Q8 test inverso con artículos inventados/opciones repetidas, Q9 chuleta que llama
+«plazo» a cualquier número), verificando además con el procedimiento del auditor
+que Q1+Q2/Q6+Q3 del lote it.8 lograron su efecto; y (2) robustez de estado y
+feedback en flujos clave (backlog #15 U4: persistir o avisar en el simulacro en
+curso; adelantar el peor caso de #16 U5: compartir en `file://` cae a un prompt de
+~14.000 caracteres; #17 U6: la pestaña «Repaso» debe contener o enlazar el repaso
+de falladas). Los auditores re-verifican estos hallazgos sobre la app real y pueden
+aportar hallazgos nuevos de las mismas lentes; el priorizador compone el lote; todo
+arreglo con su test de regresión (`node --test` en core, E2E en flujos de UI) y
+suite en verde al cierre.
+
+### Lote seleccionado (heredado de la auditoría it.8) y criterios de aceptación
+
+Los hallazgos ya fueron auditados y puntuados en it.8 (backlog #14-#17): no se
+relanzan auditores; el priorizador de it.8 los dejó como «primeras candidatas
+para it.9». Todos con test de regresión y suite en verde al cierre.
+
+**Q5 — Definiciones sin coma** — `DEFINITION_RE` corta el término ante el
+determinante que abre la definición («todo/toda/aquel/aquella/el/la…»):
+«vehículo de motor» en vez de 60 caracteres de basura; el caso con coma
+(«interesado, aquella persona…») no cambia.
+
+**Q7 — Distractores numéricos** — los decimales conservan el número de
+decimales del original (nada de «31» entre «15,5»); sin alternativa «1» en
+mutaciones dentro de frase (evita «1 años»); sin n×2 para n ≥ 60 (evita
+«240 km/h»).
+
+**Q8 — Test inverso** — los artículos inventados de relleno se limitan a
+adyacentes plausibles (n±1..3) del artículo real, nunca n×2/n+10.
+
+**Q9 — Chuleta** — nueva sección «Otras cifras»: solo van a «Plazos» los
+números con contexto de plazo (plazo/término/antelación/prórroga o
+día/mes/hora); «18 años» (edad) o «300 diputados» dejan de ser plazos.
+
+**U4 — Simulacro** — aviso `beforeunload` mientras hay un simulacro en curso
+sin corregir (la persistencia completa queda en backlog como decisión F1).
+
+**U5 (caso peor) — Compartir** — fin del `prompt()` con URL de ~14.000
+caracteres: caja inline con el enlace, botón «Copiar» y estado del
+portapapeles, también en `file://`.
+
+**U6 — Pestaña Repaso** — tarjeta «Falladas pendientes (N)» con acceso
+directo al modo repaso de falladas desde la pestaña Repaso.
+
+**Verificación del efecto it.8** — test de regresión anti-fuga: ninguna
+opción correcta se repite entre preguntas del mismo lote generado.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y

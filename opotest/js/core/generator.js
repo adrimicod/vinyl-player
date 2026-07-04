@@ -44,15 +44,19 @@
     const isDecimal = /[.,]/.test(value);
     if (isDecimal) {
       const sep = value.includes(',') ? ',' : '.';
+      const decimals = value.split(/[.,]/)[1].length;
       const n = parseFloat(value.replace(',', '.'));
       const deltas = [n + 1, Math.max(0.1, n - 1), n * 2, n / 2];
-      return deltas.map((d) => {
-        const s = (Math.round(d * 100) / 100).toString();
+      return Array.from(new Set(deltas.map((d) => {
+        // Mismo número de decimales que el original: un «31» entero entre
+        // «15,5» y «14,5» delata al distractor.
+        const s = d.toFixed(decimals);
         return sep === ',' ? s.replace('.', ',') : s;
-      });
+      }))).filter((s) => s !== value);
     }
     const n = parseInt(value, 10);
-    const candidates = [n + 1, n - 1, n + 5, n * 2, n + 10, Math.floor(n / 2)]
+    // n×2 con números grandes produce distractores inverosímiles (240 km/h)
+    const candidates = [n + 1, n - 1, n + 5, n < 60 ? n * 2 : n - 5, n + 10, Math.floor(n / 2)]
       .filter((x) => x > 0 && x !== n);
     return Array.from(new Set(candidates)).map(String);
   }
@@ -87,7 +91,9 @@
   function mutateNumber(sentence, rng) {
     const m = sentence.match(/\b\d+(?:[.,]\d+)?\b/);
     if (!m) return null;
-    const alts = perturbNumber(m[0], rng);
+    // Dentro de una frase, «1» rompe la concordancia con el plural que le
+    // sigue («inferior a 1 años»): se excluye salvo que el original sea 1.
+    const alts = perturbNumber(m[0], rng).filter((a) => a !== '1' || m[0] === '1');
     if (!alts.length) return null;
     return sentence.replace(m[0], alts[Math.floor(rng() * alts.length)]);
   }

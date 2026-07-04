@@ -12,7 +12,21 @@ test('buildCheatsheet agrupa plazos, definiciones y enumeraciones con su artícu
   assert.equal(sheet.definiciones[0].ref, 'Artículo 2');
   assert.equal(sheet.enumeraciones.length, 1);
   assert.equal(sheet.enumeraciones[0].items.length, 4);
-  assert.equal(sheet.total, sheet.plazos.length + sheet.definiciones.length + sheet.enumeraciones.length);
+  assert.equal(sheet.total,
+    sheet.plazos.length + sheet.cifras.length + sheet.definiciones.length + sheet.enumeraciones.length);
+});
+
+test('solo los números con contexto temporal son plazos (Q9)', () => {
+  const sheet = buildCheatsheet(
+    'Artículo 12. Mayoría de edad.\nLos españoles son mayores de edad a los 18 años cumplidos conforme a la Constitución.\n' +
+    'Artículo 66. Composición.\nEl Congreso se compone de un mínimo de 300 Diputados elegidos por sufragio universal.\n' +
+    'Artículo 21. Plazos.\nEl plazo máximo para resolver el procedimiento será de 3 meses desde su iniciación.'
+  );
+  assert.equal(sheet.plazos.length, 1, 'solo el plazo real');
+  assert.equal(sheet.plazos[0].value, '3');
+  assert.equal(sheet.cifras.length, 2, 'edad y diputados son cifras, no plazos');
+  assert.ok(sheet.cifras.some((c) => c.value === '18'));
+  assert.ok(sheet.cifras.some((c) => c.value === '300'));
 });
 
 test('las filas van ordenadas por número de artículo', () => {

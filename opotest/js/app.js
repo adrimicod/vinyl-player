@@ -693,14 +693,46 @@
       }
       const fragment = C.encodeShare(currentQuiz.questions, { challenge });
       const url = location.href.split('#')[0] + '#' + fragment;
-      const done = () => alert('Enlace copiado. Cualquiera que lo abra podrá hacer este test e importar las preguntas a su banco.');
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(done, () => prompt('Copia el enlace del test:', url));
-      } else {
-        prompt('Copia el enlace del test:', url);
-      }
+      showShareBox(url);
     } catch (e) {
       alert('No se pudo compartir: ' + e.message);
+    }
+  }
+
+  /**
+   * Caja inline con el enlace y botón «Copiar»: en `file://` el portapapeles
+   * asíncrono falla y un prompt() con una URL de miles de caracteres es
+   * inmanejable. La selección + execCommand funciona en todos los casos.
+   */
+  function showShareBox(url) {
+    const old = document.getElementById('shareBox');
+    if (old) old.remove();
+    const input = el('input', { type: 'text', value: url, readonly: 'readonly', onclick: (ev) => ev.currentTarget.select() });
+    const status = el('span', { class: 'hint' }, '');
+    const copy = () => {
+      input.select();
+      let done = false;
+      try { done = document.execCommand('copy'); } catch (e) { /* sin permiso */ }
+      if (done) status.textContent = '✅ Copiado. Quien lo abra podrá hacer el test e importarlo.';
+      else status.textContent = 'Selecciona el enlace y cópialo con Ctrl+C.';
+    };
+    const box = el('div', { class: 'card share-offer', id: 'shareBox' }, [
+      el('h2', {}, '🔗 Enlace del test'),
+      el('div', { class: 'row wrap' }, [
+        input,
+        el('button', { class: 'btn primary', onclick: copy }, '📋 Copiar'),
+        el('button', { class: 'btn', onclick: () => box.remove() }, '✖ Cerrar'),
+      ]),
+      status,
+    ]);
+    $('quizResult').appendChild(box);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => { status.textContent = '✅ Copiado. Quien lo abra podrá hacer el test e importarlo.'; },
+        copy
+      );
+    } else {
+      copy();
     }
   }
 
@@ -1023,6 +1055,12 @@
         el('td', {}, r.sentence),
         el('td', { class: 'cs-ref' }, r.ref || ''),
       ]))]),
+      el('h3', {}, '🔢 Otras cifras (' + sheet.cifras.length + ')'),
+      el('table', {}, [el('tbody', {}, rows(sheet.cifras, (r) => [
+        el('td', { class: 'cs-val' }, (r.weak ? '🔥 ' : '') + r.value),
+        el('td', {}, r.sentence),
+        el('td', { class: 'cs-ref' }, r.ref || ''),
+      ]))]),
       el('h3', {}, '📖 Definiciones (' + sheet.definiciones.length + ')'),
       el('table', {}, [el('tbody', {}, rows(sheet.definiciones, (r) => [
         el('td', { class: 'cs-val' }, (r.weak ? '🔥 ' : '') + r.term),
@@ -1044,9 +1082,39 @@
   }
 
   function renderReview() {
+    renderFailedCard();
     renderSrs();
     renderTrapIntro();
     renderClozeInfo();
+  }
+
+  /**
+   * El «repaso de falladas» vive en Hacer test, pero su sitio natural de
+   * descubrimiento es esta pestaña: tarjeta con el pendiente y acceso directo.
+   */
+  function renderFailedCard() {
+    const old = document.getElementById('failedCard');
+    if (old) old.remove();
+    const failed = (user.failedIds || []).length;
+    if (!failed) return;
+    const fc = (user.falseCertaintyIds || []).length;
+    const cb = (user.chainBreakerIds || []).length;
+    const detail = [fc && fc + ' falsas certezas', cb && cb + ' rompe-cadenas'].filter(Boolean).join(', ');
+    const card = el('div', { class: 'card', id: 'failedCard' }, [
+      el('h2', {}, '📌 Falladas pendientes: ' + failed),
+      el('p', { class: 'hint' }, (detail ? 'Prioridad: ' + detail + '. ' : '') +
+        'Acertarlas las saca del repaso.'),
+      el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          document.querySelector('[data-tab="quiz"]').click();
+          $('quizMode').value = 'failed';
+          $('startQuizBtn').click();
+        },
+      }, '▶ Repasar falladas ahora'),
+    ]);
+    const panel = $('panel-review');
+    panel.insertBefore(card, panel.firstChild);
   }
 
   // ---------- Completa el literal (cloze) ----------
@@ -1391,6 +1459,15 @@
       ]));
     }
   }
+
+  // Un simulacro cronometrado a medias no debe perderse por una recarga
+  // accidental: el navegador pide confirmación mientras haya uno en curso.
+  window.addEventListener('beforeunload', (e) => {
+    if (currentQuiz && currentQuiz.mode === 'exam' && !currentQuiz.submitted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 
   // ---------- Arranque ----------
 

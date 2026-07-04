@@ -25,26 +25,37 @@
     );
   }
 
+  // Un número solo es un «plazo» con contexto temporal-procedimental:
+  // «18 años» (mayoría de edad) o «300 diputados» no lo son.
+  const PLAZO_CONTEXT_RE = /\b(plazo|plazos|t[ée]rmino|antelaci[óo]n|pr[óo]rroga|prescri|caduc)\w*|\d+\s*(d[íi]as?|mes(?:es)?|horas?)\b/i;
+
   /**
    * Construye la chuleta a partir del texto del temario.
-   * @returns {{plazos, definiciones, enumeraciones, total}} filas con {ref, weak?: bool}
+   * @returns {{plazos, cifras, definiciones, enumeraciones, total}} filas con {ref, weak?: bool}
    */
   function buildCheatsheet(rawText) {
     const { facts } = parser.parse(rawText);
     const plazos = [];
+    const cifras = [];
     const definiciones = [];
     const enumeraciones = [];
     for (const f of facts) {
-      if (f.type === 'number') plazos.push({ value: f.value, sentence: f.sentence, ref: f.ref || null });
-      else if (f.type === 'definition') definiciones.push({ term: f.term, definition: f.definition, ref: f.ref || null });
-      else if (f.type === 'enumeration') enumeraciones.push({ items: f.items, ref: f.ref || null });
+      if (f.type === 'number') {
+        const row = { value: f.value, sentence: f.sentence, ref: f.ref || null };
+        (PLAZO_CONTEXT_RE.test(f.sentence) ? plazos : cifras).push(row);
+      } else if (f.type === 'definition') {
+        definiciones.push({ term: f.term, definition: f.definition, ref: f.ref || null });
+      } else if (f.type === 'enumeration') {
+        enumeraciones.push({ items: f.items, ref: f.ref || null });
+      }
     }
     const sheet = {
       plazos: sortByRef(plazos),
+      cifras: sortByRef(cifras),
       definiciones: sortByRef(definiciones),
       enumeraciones: sortByRef(enumeraciones),
     };
-    sheet.total = sheet.plazos.length + sheet.definiciones.length + sheet.enumeraciones.length;
+    sheet.total = sheet.plazos.length + sheet.cifras.length + sheet.definiciones.length + sheet.enumeraciones.length;
     return sheet;
   }
 
@@ -71,7 +82,7 @@
    */
   function annotateWeak(sheet, weakRefSet) {
     let marked = 0;
-    for (const section of ['plazos', 'definiciones', 'enumeraciones']) {
+    for (const section of ['plazos', 'cifras', 'definiciones', 'enumeraciones']) {
       for (const row of sheet[section]) {
         row.weak = !!(row.ref && weakRefSet.has(row.ref));
         if (row.weak) marked++;

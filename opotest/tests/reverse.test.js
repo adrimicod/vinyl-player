@@ -52,6 +52,14 @@ test('con banco pequeño completa distractores perturbando el número de artícu
   assert.ok(quiz[0].options.every((o) => o.includes('Ley 39/2015')));
 });
 
+test('los artículos de relleno son adyacentes plausibles, no saltos delatores (Q8)', () => {
+  const quiz = buildReverseQuiz([bankQuestion(30, 'Ley 39/2015', 0)], { count: 1, rng: gen.createRng(5) });
+  for (const opt of quiz[0].options) {
+    const n = parseInt(opt.match(/\d+/)[0], 10);
+    assert.ok(Math.abs(n - 30) <= 3, 'artículo inverosímil: ' + opt);
+  }
+});
+
 test('descarta preguntas sin metadatos suficientes', () => {
   const noMeta = goodQuestion({
     text: 'Pregunta sin referencia a ningún precepto pero con longitud válida',
