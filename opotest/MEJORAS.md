@@ -699,6 +699,41 @@ de gravedad alta/media + los residuales #19/#20 (XS). Todo con regresión.
 | — | Doble activación de «Siguiente bloque» salta bloques (bugs#4) | ✅ Lote — quizResult se vacía al re-renderizar |
 | — | Cada bloque de sesión suma un «test hecho» (nota de diseño) | → Backlog (decisión de producto) |
 
+## Iteración 13 — Rediseño «Boletín»: identidad visual premium (completada)
+
+Iteración de diseño con tres agentes en paralelo:
+- **Evaluador de originalidad de la UI**: veredicto 1,4/5 — «cerebro de producto
+  brillante en el cuerpo de la milésima dashboard dark-mode azul-violeta con
+  emojis»; toda la identidad vivía en el copy. Rescatables: la hoja de
+  respuestas del simulacro, las celdas de la radiografía y la voz escrita.
+- **Evaluador de UX**: la app abría por el flujo ocasional (Generar) y no por
+  el diario; los momentos culminantes (10/10, récord) aplanados; cuatro
+  registros de voz; densidad sin divulgación progresiva. Además cazó un bug
+  real: «Tipo de sabotaje: undefined» (colisión OpoCore.KIND_LABELS entre
+  trapGame.js y profile.js, misma familia que el THRESHOLDS de it.12).
+- **Visionario**: tres conceptos con nombre — «Boletín» (BOE editorial),
+  «Fosforito» (fotocopia de academia), «Tribunal» (brutalismo de impreso) —
+  y recomendación razonada: **Boletín con el fluor de Fosforito como color
+  de interacción**, con design system completo (tokens, 6 componentes).
+
+Implementado:
+- styles.css reescrito por completo con el sistema «Boletín»: papel y tinta,
+  serif editorial (Georgia/Palatino) para el contenido legal, Courier de
+  registro para cifras/kickers, filete doble del boletín, hojas de expediente
+  con esquina doblada, subrayador fluor como interacción, sellos estampados
+  «✓ CORRECTA / ✗ REVISar» por opción y «APTO / NO APTO» en la diligencia de
+  calificación; radiografía como casillas de impreso; cartilla de pólizas.
+- Jerarquía UX: la app abre por «Sec. I · Hacer test» (el flujo diario);
+  cabecera de boletín fechada («Núm. {día del año} · fecha»); récord de
+  cadena como titular; coletilla del baremo solo en exámenes (modo exam o
+  ≥10 preguntas); línea «Test perfecto» en los plenos.
+- Fix del bug KIND_LABELS: TRAP_KIND_LABELS / PROFILE_KIND_LABELS en OpoCore
+  (compatibilidad Node intacta para los tests).
+
+Pendiente (backlog): pase de voz completo en app.js (unificar registros,
+reducir emojis dinámicos), «Tu BOE de cada mañana» (portada compartible del
+reto diario), cartilla de pólizas interactiva, señal temporal real del radar.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres

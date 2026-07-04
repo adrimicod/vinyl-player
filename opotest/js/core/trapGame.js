@@ -92,10 +92,13 @@
     };
   }
 
-  const api = { buildTrapRound, checkAnswer, usableQuotes, KIND_LABELS, ROUND_SIZE };
+  // Al espacio compartido OpoCore va TRAP_KIND_LABELS: profile.js exporta sus
+  // propias etiquetas de tipo y el nombre genérico KIND_LABELS colisionaba
+  // (el veredicto del cazador mostraba «undefined»).
+  const api = { buildTrapRound, checkAnswer, usableQuotes, TRAP_KIND_LABELS: KIND_LABELS, ROUND_SIZE };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
+    module.exports = Object.assign({ KIND_LABELS }, api);
   } else {
     window.OpoCore = Object.assign(window.OpoCore || {}, api);
   }

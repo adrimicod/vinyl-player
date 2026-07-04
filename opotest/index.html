@@ -8,23 +8,24 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>📚 OpoTest</h1>
-    <p class="tagline">Sube tu temario, genera preguntas tipo test y comparte con la comunidad</p>
-    <div class="credit-pill" id="creditPill" title="Créditos disponibles este mes">💳 <span id="creditBalance">–</span> créditos</div>
+    <div class="masthead-kicker" id="mastheadKicker">Boletín Oficial del Opositor</div>
+    <h1><span class="escudo">OT</span> OpoTest</h1>
+    <p class="tagline">Estudia lo que toca, mide lo que sabes y llega al examen sabiendo que apruebas.</p>
+    <div class="credit-pill" id="creditPill" title="Créditos disponibles este mes">Saldo: <span id="creditBalance">–</span> créd.</div>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="generate">✨ Generar</button>
-    <button class="tab" data-tab="quiz">📝 Hacer test</button>
-    <button class="tab" data-tab="review">🧠 Repaso</button>
-    <button class="tab" data-tab="bank">🗂️ Banco</button>
-    <button class="tab" data-tab="coverage">📊 Radiografía</button>
-    <button class="tab" data-tab="account">👤 Mi cuenta</button>
+    <button class="tab active" data-tab="quiz">Sec. I · Hacer test</button>
+    <button class="tab" data-tab="review">Sec. II · Repaso</button>
+    <button class="tab" data-tab="generate">Sec. III · Generar</button>
+    <button class="tab" data-tab="bank">Sec. IV · Banco</button>
+    <button class="tab" data-tab="coverage">Sec. V · Radiografía</button>
+    <button class="tab" data-tab="account">Sec. VI · Mi cuenta</button>
   </nav>
 
   <main>
     <!-- ============ GENERAR ============ -->
-    <section class="panel active" id="panel-generate">
+    <section class="panel" id="panel-generate">
       <div class="card">
         <h2>1 · Acota tu temario</h2>
         <p class="hint">Cuanto mejor acotes la fuente, mejores serán las preguntas y más reutilizables para otras oposiciones.</p>
@@ -80,7 +81,7 @@
     </section>
 
     <!-- ============ HACER TEST ============ -->
-    <section class="panel" id="panel-quiz">
+    <section class="panel active" id="panel-quiz">
       <div class="card session-card" id="sessionCard">
         <h2>⚡ Estudia ahora</h2>
         <p class="hint">Dime cuánto tiempo tienes y compongo tu sesión: primero lo que vence, luego lo que fallas, después lo que se enfría — cada bloque con su porqué.</p>
@@ -211,7 +212,7 @@
   </main>
 
   <footer class="app-footer">
-    OpoTest · Prototipo F0 — todo se guarda en tu navegador (localStorage). Ver <code>PLAN.md</code> para el roadmap.
+    OpoTest · Boletín Oficial del Opositor — edición local: todo queda en tu navegador
   </footer>
 
   <!-- Núcleo de dominio (orden importa: dependencias primero) -->

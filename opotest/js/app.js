@@ -637,8 +637,12 @@
     saveUser();
     const area = $('quizArea');
     area.innerHTML = '';
+    // El récord es el titular; la rotura, el detalle (jerarquía emocional)
+    const headline = beaten.globalBeaten
+      ? '🏅 Récord: ' + chain.streak + ' seguidas'
+      : '🔗 ' + chain.streak;
     const parts = [
-      el('div', { class: 'big' }, '🔗 ' + chain.streak),
+      el('div', { class: 'big' }, headline),
       el('div', { class: 'detail' }, breakerQuestion
         ? 'Cadena rota tras ' + chain.streak + ' acierto' + (chain.streak === 1 ? '' : 's') + '.'
         : '🏆 ¡Banco agotado sin fallar! Cadena invicta de ' + chain.streak + '.'),
@@ -851,8 +855,11 @@
       ]));
     }
 
+    // La coletilla del baremo solo donde suena a examen; en micro-bloques es ruido.
+    const baremoNote = (currentQuiz.mode === 'exam' || scored.total >= 10)
+      ? ' · (cada fallo resta 1/3, baremo de oposición)' : '';
     const detailParts = ['✅ ' + scored.correct + ' aciertos · ❌ ' + scored.wrong + ' fallos · ⚪ ' + scored.blank +
-      ' en blanco · (cada fallo resta 1/3, baremo de oposición)'];
+      ' en blanco' + baremoNote];
     const banner = $('quizResult');
     banner.innerHTML = '';
     banner.classList.remove('hidden');
@@ -962,7 +969,13 @@
     }
     actionRow.appendChild(el('button', { class: 'btn', onclick: shareCurrentQuiz }, '🔗 Compartir este test'));
     bannerChildren.push(actionRow);
-    banner.appendChild(el('div', { class: 'score-banner' }, bannerChildren));
+    // Sello de diligencia: APTO/NO APTO en tests con entidad de examen
+    const graded = ['normal', 'failed', 'exam', 'daily', 'session'].includes(currentQuiz.mode);
+    const stamp = graded && scored.total >= 5 ? (scored.score10 >= 5 ? ' apto' : ' noapto') : '';
+    if (graded && scored.total >= 5 && scored.correct === scored.total) {
+      bannerChildren.splice(1, 0, el('div', { class: 'detail streak' }, 'Test perfecto: ' + scored.correct + ' de ' + scored.total + '.'));
+    }
+    banner.appendChild(el('div', { class: 'score-banner' + stamp }, bannerChildren));
     banner.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -1630,7 +1643,7 @@
     const area = $('trapArea');
     area.appendChild(el('p', { class: 'hint' }, '¿Y qué se cambió?'));
     const kindRow = el('div', { class: 'row wrap' });
-    for (const [kind, label] of Object.entries(C.KIND_LABELS)) {
+    for (const [kind, label] of Object.entries(C.TRAP_KIND_LABELS)) {
       kindRow.appendChild(el('button', { class: 'btn small', onclick: () => finishTrapRound(kind) }, label));
     }
     area.appendChild(kindRow);
@@ -1649,7 +1662,7 @@
     });
     const messages = [
       verdict.statementCorrect ? '✅ ¡Cazada! Señalaste la afirmación saboteada.' : '❌ La saboteada era la ' + String.fromCharCode(65 + round.trapIndex) + '.',
-      (verdict.kindCorrect ? '✅' : '❌') + ' Tipo de sabotaje: ' + C.KIND_LABELS[round.mutationKind] + '.',
+      (verdict.kindCorrect ? '✅' : '❌') + ' Tipo de sabotaje: ' + C.TRAP_KIND_LABELS[round.mutationKind] + '.',
       'Original: «' + round.original + '»',
     ];
     area.appendChild(el('div', { class: 'explanation' }, messages.join(' ')));
@@ -1880,6 +1893,14 @@
   });
 
   // ---------- Arranque ----------
+
+  // Cabecera de boletín: numeración por día del año y fecha larga
+  (function renderMasthead() {
+    const now = new Date();
+    const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+    const fecha = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    $('mastheadKicker').textContent = 'Boletín Oficial del Opositor — Núm. ' + dayOfYear + ' · ' + fecha;
+  })();
 
   renderCredits();
   renderQuizSetup();

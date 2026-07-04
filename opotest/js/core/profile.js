@@ -57,10 +57,12 @@
     return (activeQuestions || []).filter((q) => q.kind === kind);
   }
 
-  const api = { buildKindProfile, questionsByKind, KIND_LABELS, MIN_ATTEMPTS_PER_KIND };
+  // Al espacio compartido OpoCore va PROFILE_KIND_LABELS (trapGame.js exporta
+  // sus propias etiquetas; el nombre genérico KIND_LABELS colisionaba).
+  const api = { buildKindProfile, questionsByKind, PROFILE_KIND_LABELS: KIND_LABELS, MIN_ATTEMPTS_PER_KIND };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
+    module.exports = Object.assign({ KIND_LABELS }, api);
   } else {
     window.OpoCore = Object.assign(window.OpoCore || {}, api);
   }
