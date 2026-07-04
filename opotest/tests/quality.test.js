@@ -113,6 +113,16 @@ test('resolveErrata sin correctorId no registra corrector (compatibilidad)', () 
   assert.equal(q.quality.correctedBy, undefined);
 });
 
+test('hasVoted distingue el primer voto de un cambio de sentido (B2, anti-granja)', () => {
+  const q = freshQuestion();
+  assert.equal(quality.hasVoted(q, 'u1'), false, 'antes de votar no ha votado');
+  quality.vote(q, 'u1', 1);
+  assert.equal(quality.hasVoted(q, 'u1'), true);
+  quality.vote(q, 'u1', -1); // cambia el sentido: sigue siendo el mismo evaluador
+  assert.equal(quality.hasVoted(q, 'u1'), true);
+  assert.equal(quality.hasVoted(q, 'u2'), false);
+});
+
 test('rewardEvaluator respeta el tope diario', () => {
   let earned = 0;
   const credits = { earn: (n) => { earned += n; } };

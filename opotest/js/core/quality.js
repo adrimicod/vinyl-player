@@ -54,6 +54,16 @@
     return { changed: true, status: q.status };
   }
 
+  /**
+   * ¿Ha votado ya este usuario esta pregunta (en cualquier sentido)?
+   * La recompensa de evaluador solo debe pagarse con el PRIMER voto:
+   * cambiar el sentido del voto no es evaluar de nuevo.
+   */
+  function hasVoted(question, userId) {
+    const voters = question.quality && question.quality.voters;
+    return !!voters && Object.prototype.hasOwnProperty.call(voters, userId);
+  }
+
   /** Reporta una errata; la pregunta pasa a revisión. */
   function reportErrata(question, userId, message) {
     const text = String(message || '').trim();
@@ -135,7 +145,7 @@
     return true;
   }
 
-  const api = { score, computeStatus, vote, reportErrata, resolveErrata, applyAuthorReward, applyCorrectorReward, rewardEvaluator, THRESHOLDS, REWARDS };
+  const api = { score, computeStatus, vote, hasVoted, reportErrata, resolveErrata, applyAuthorReward, applyCorrectorReward, rewardEvaluator, THRESHOLDS, REWARDS };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

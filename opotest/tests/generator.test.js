@@ -48,6 +48,44 @@ test('mutateSwap respeta la capitalización de la palabra sustituida', () => {
   assert.ok(swapped && swapped !== sentence);
 });
 
+test('mutateSwap conserva la puntuación y la terminación de la palabra sustituida (Q1)', () => {
+  const sentence = 'Las personas ejercerán sus derechos ante las instituciones competentes.';
+  const corpus = ['Las autoridades resolverán las reclamaciones presentadas por las asociaciones interesadas.'];
+  let checked = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const m = gen.mutateSwap(sentence, corpus, gen.createRng(seed));
+    if (!m) continue;
+    checked++;
+    assert.ok(m.endsWith('.'), 'debe conservar el punto final: ' + m);
+    // La palabra nueva termina igual (aprox. mismo género/número) que la sustituida
+    const before = sentence.split(/\s+/);
+    const after = m.split(/\s+/);
+    assert.equal(before.length, after.length);
+    for (let i = 0; i < before.length; i++) {
+      if (before[i] !== after[i]) {
+        const clean = (w) => w.replace(/[.,;:]+$/, '').toLowerCase();
+        assert.equal(clean(before[i]).slice(-2), clean(after[i]).slice(-2),
+          'terminación distinta: ' + before[i] + ' → ' + after[i]);
+      }
+    }
+    // Sin palabras adyacentes duplicadas
+    for (let i = 1; i < after.length; i++) {
+      assert.notEqual(after[i].toLowerCase(), after[i - 1].toLowerCase(), 'duplicado adyacente en: ' + m);
+    }
+  }
+  assert.ok(checked >= 5, 'el mutador debe seguir produciendo intercambios (' + checked + '/30)');
+});
+
+test('el hueco numérico no rompe siglas tipo A1 (Q4)', () => {
+  const { questions } = gen.generateQuestions(
+    'Artículo 7. Consolidación.\nLos funcionarios del subgrupo A1 consolidarán 1 trienio por cada periodo de tres años de servicios prestados en la Administración.',
+    { ley: 'EBEP' }, 5, { seed: 3 }
+  );
+  for (const q of questions.filter((x) => x.kind === 'number')) {
+    assert.ok(!q.text.includes('A____'), 'sigla rota en: ' + q.text);
+  }
+});
+
 test('generateQuestions produce preguntas válidas y ancladas al texto', () => {
   const { questions } = gen.generateQuestions(SAMPLE_LAW, SAMPLE_TOPIC, 8, { seed: 42 });
   assert.ok(questions.length >= 4, 'esperaba al menos 4 preguntas, salieron ' + questions.length);

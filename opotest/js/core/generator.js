@@ -94,29 +94,48 @@
 
   function mutateSwap(sentence, corpus, rng) {
     const words = sentence.split(/\s+/);
-    const eligible = words
-      .map((w, i) => ({ w, i }))
-      .filter(({ w }) => sim.normalizeText(w).length >= 7);
-    if (!eligible.length) return null;
-    const target = eligible[Math.floor(rng() * eligible.length)];
-    const isCapitalized = (w) => /^[A-ZÁÉÍÓÚÑ]/.test(w);
-    const pool = [];
-    for (const other of corpus) {
-      if (other === sentence) continue;
-      for (const w of other.split(/\s+/)) {
-        const norm = sim.normalizeText(w);
-        // Solo intercambiamos palabras con la misma capitalización: reduce
-        // distractores agramaticales («Las utilizar tienen…»).
-        if (norm.length >= 7 && norm !== sim.normalizeText(target.w) && isCapitalized(w) === isCapitalized(target.w)) {
-          pool.push(w.replace(/[.,;:]$/, ''));
+    const stripPunct = (w) => w.replace(/[.,;:»)]+$/, '');
+    const isCapitalized = (w) => /^[A-ZÁÉÍÓÚÑ«(]/.test(w);
+    const eligible = shuffle(
+      words.map((w, i) => ({ w, i })).filter(({ w }) => sim.normalizeText(stripPunct(w)).length >= 7),
+      rng
+    );
+    // Se prueban varios objetivos: no todos tienen sustituto compatible.
+    for (const target of eligible) {
+      const targetCore = stripPunct(target.w);
+      const targetPunct = target.w.slice(targetCore.length);
+      const targetNorm = sim.normalizeText(targetCore);
+      // La terminación aproxima género/número/categoría: intercambiar
+      // «personas»→«concretas» pasa, «personas»→«comunicarse» no. Reduce
+      // los distractores agramaticales que delatan la respuesta correcta.
+      const targetSuffix = targetNorm.slice(-2);
+      const pool = [];
+      for (const other of corpus) {
+        if (other === sentence) continue;
+        for (const w of other.split(/\s+/)) {
+          const core = stripPunct(w);
+          const norm = sim.normalizeText(core);
+          if (norm.length >= 7 && norm !== targetNorm &&
+              isCapitalized(core) === isCapitalized(targetCore) &&
+              norm.slice(-2) === targetSuffix) {
+            pool.push(core);
+          }
         }
       }
+      if (!pool.length) continue;
+      const replacement = pool[Math.floor(rng() * pool.length)];
+      // Sin duplicar la palabra vecina («Públicas Públicas»)
+      const prev = words[target.i - 1];
+      const next = words[target.i + 1];
+      if ((prev && sim.normalizeText(stripPunct(prev)) === sim.normalizeText(replacement)) ||
+          (next && sim.normalizeText(stripPunct(next)) === sim.normalizeText(replacement))) {
+        continue;
+      }
+      const mutated = words.slice();
+      mutated[target.i] = replacement + targetPunct; // conserva la puntuación original
+      return mutated.join(' ');
     }
-    if (!pool.length) return null;
-    const replacement = pool[Math.floor(rng() * pool.length)];
-    const mutated = words.slice();
-    mutated[target.i] = replacement;
-    return mutated.join(' ');
+    return null;
   }
 
   /**
@@ -166,7 +185,8 @@
   // ---------- Constructores por tipo de hecho ----------
 
   function questionFromNumber(fact, topic, rng) {
-    const gap = fact.sentence.replace(fact.value, '____');
+    // gapReplace respeta contornos: no rompe siglas («A1») ni decimales.
+    const gap = parser.gapReplace(fact.sentence, fact.value);
     if (gap === fact.sentence) return null;
     const alts = perturbNumber(fact.value, rng);
     const built = buildOptions(fact.value, shuffle(alts, rng), rng);

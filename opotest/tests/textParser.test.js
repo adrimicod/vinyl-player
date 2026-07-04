@@ -69,6 +69,58 @@ test('las frases que terminan en «:» no se usan como afirmaciones', () => {
   assert.ok(!facts.some((f) => f.type === 'statement'), 'una introducción de enumeración no es una afirmación');
 });
 
+// ---- Regresión auditoría it.8 ----
+
+test('questionableNumbers excluye citas de leyes, artículos y años (Q3)', () => {
+  assert.deepEqual(
+    parser.questionableNumbers('De conformidad con la Ley 39/2015, el plazo para subsanar será de 10 días hábiles.'),
+    ['10'],
+    'la cita «Ley 39/2015» no es un dato examinable'
+  );
+  assert.deepEqual(parser.questionableNumbers('Según el artículo 66, el Congreso se compone de 350 diputados.'), ['350']);
+  assert.deepEqual(parser.questionableNumbers('La Constitución de 1978 fija la mayoría de edad en 18 años.'), ['18']);
+  assert.deepEqual(parser.questionableNumbers('Lo dispuesto en el Real Decreto 5/2015 y en la Ley 40/2015.'), []);
+  assert.deepEqual(parser.questionableNumbers('El plazo del 39/2015 es de 3 meses.'), ['3'], 'cita numérica suelta también se excluye');
+});
+
+test('el hecho number usa el primer número examinable, no la cita legal (Q3)', () => {
+  const { facts } = parser.parse(
+    'Artículo 5. Plazos.\nDe conformidad con la Ley 39/2015, el plazo máximo para resolver será de 10 días hábiles contados desde la notificación.'
+  );
+  const num = facts.find((f) => f.type === 'number');
+  assert.ok(num, 'debe haber hecho numérico');
+  assert.equal(num.value, '10');
+});
+
+test('los ítems de enumeración no se re-extraen como statement/number (Q2)', () => {
+  const { facts } = parser.parse(SAMPLE_LAW);
+  const enumFact = facts.find((f) => f.type === 'enumeration');
+  assert.ok(enumFact);
+  const itemTexts = enumFact.items;
+  for (const f of facts) {
+    if (f.type === 'enumeration') continue;
+    for (const item of itemTexts) {
+      assert.notEqual(f.sentence, item, 'ítem re-extraído como ' + f.type + ': ' + item);
+    }
+  }
+});
+
+test('gapReplace respeta contornos: siglas, decimales y números vecinos (Q4)', () => {
+  assert.equal(
+    parser.gapReplace('Los funcionarios del subgrupo A1 consolidarán 1 trienio.', '1'),
+    'Los funcionarios del subgrupo A1 consolidarán ____ trienio.',
+    'no debe romper la sigla A1'
+  );
+  assert.ok(parser.gapReplace('Los menores de 16 años tendrán 6 meses.', '6').includes('16 años'));
+  assert.equal(parser.gapReplace('El porcentaje será del 2,5 por ciento.', '2,5'), 'El porcentaje será del ____ por ciento.');
+  assert.ok(parser.gapReplace('interesado en el procedimiento', 'interesado').startsWith('____'));
+  assert.equal(
+    parser.gapReplace('los desinteresados no computan', 'interesados'),
+    'los desinteresados no computan',
+    'no debe cortar dentro de otra palabra'
+  );
+});
+
 test('los hechos llevan la referencia del artículo al que pertenecen', () => {
   const { facts } = parser.parse(SAMPLE_LAW);
   const numberFacts = facts.filter((f) => f.type === 'number');

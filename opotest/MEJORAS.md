@@ -260,7 +260,7 @@ testeados) sobre abrir frentes grandes.
 - Récords persisten en `userState`/localStorage; solo preguntas activas del
   banco: 0 créditos, 0 IA.
 
-## Iteración 8 — Rama PULIR: flujo end-to-end de las modalidades y consolidación de la UI (en curso)
+## Iteración 8 — Rama PULIR: flujo end-to-end de las modalidades y consolidación de la UI (completada)
 
 **Decisión del agente director**: PULIR.
 Las iteraciones 3-7 han sido **cinco iteraciones seguidas de la rama explorar** (el
@@ -281,6 +281,130 @@ erratas y editor manual) y la coherencia de la UI orquestadora: los auditores de
 ejercitar la app real con las lentes correctness/bugs, UX-coherencia-persistencia de
 `userState`, y calidad de preguntas del generador; el lote resultante debe incluir
 tests de regresión y dejar cubierta E2E de los flujos clave.
+
+**Priorización de la auditoría** (subagente priorizador). Tres auditores
+(correctness / UX-persistencia / calidad del generador) aportaron 27 hallazgos;
+deduplicados quedan 24 (B1=U2 son el mismo defecto visto por dos lentes; Q6 se
+arregla con Q2 —ambos nacen del doble-extract del `textParser`—; Q4 reutiliza el
+replace con contornos que `cloze.js` ya tiene). Puntuación: gravedad (1-5) ×
+frecuencia de uso estimada (1-5) ÷ coste (XS=1, S=2, M=4; rangos al punto medio:
+XS-S=1,5 · S-M=3).
+
+| Id | Hallazgo | G×F÷C | Puntos | Veredicto |
+|----|----------|-------|--------|-----------|
+| B1/U2 | «Reto de hoy» visible y activo durante un test/simulacro/cadena: lo destruye sin confirmación (CONF ×2 auditores) | 5×4÷1 | **20,0** | ✅ Lote |
+| U3 | El hash `#share=` nunca se limpia: la oferta reaparece en cada recarga y el reimport da «0 añadidas» como falso error | 3×4÷1 | **12,0** | ✅ Lote |
+| U1 | Generar consume los 10 créditos del mes en un clic sin previsualización de coste (`#genCost` existe y nunca se rellena) | 4×4÷1,5 | **10,7** | ✅ Lote |
+| Q2+Q6 | Fuga de respuestas: los ítems a) b) c) se extraen como enumeración Y como statement/number → preguntas del mismo lote que se chivan la respuesta; además statements de ítem suelto sin contexto (12/33 en SAMPLE_LAW) | 5×4÷2 | **10,0** | ✅ Lote |
+| Q3 | El «dato» preguntado puede ser el número de la propia ley citada («¿Ley __/2015?») en vez del plazo; contamina generador, cloze, SRS y chuleta | 4×4÷2 | **8,0** | ✅ Lote |
+| Q1 | 51% de los distractores swap/combo agramaticales o absurdos: la correcta se adivina por gramática (deuda anotada desde it.1 #3) | 5×5÷4 | **6,3** | ✅ Lote (mitigación heurística; arreglo completo sigue en F1, backlog #11) |
+| B2 | Granja de créditos: alternar 👍/👎 en la misma pregunta paga recompensa de evaluador cada vez | 3×2÷1 | **6,0** | ✅ Lote |
+| B4 | Cazador de erratas: botones de tipo de sabotaje no se deshabilitan tras responder → ✅ garantizado probando los 3 | 3×2÷1 | **6,0** | ✅ Lote |
+| B5 | Compartir trunca silenciosamente a 10 preguntas: el receptor de un reto compite con nota de un test de 20-30 jugando 10 | 3×2÷1 | **6,0** | ✅ Lote (avisar) |
+| B7 | Cloze: «✔ Corregir» repulsable escribe la solución en el input y re-evalúa contaminado | 2×3÷1 | **6,0** | ✅ Lote |
+| B8 | El reto diario cuenta racha aunque se entregue todo en blanco (`completeDaily` incondicional) | 2×3÷1 | **6,0** | ✅ Lote |
+| Q4 | El hueco puede caer dentro de una sigla («A__1»): `replace` sin contorno en `generator.js:169` y `srs.js:37` (`cloze.js` ya protege) | 3×2÷1 | **6,0** | ✅ Lote |
+| U9 | El pill muestra créditos decimales («0.2 créditos») que sugieren poder generar cuando no se puede | 2×3÷1 | **6,0** | ✅ Lote |
+| Q10 | Se piden 20 preguntas y llegan 5-11 sin aviso de material insuficiente | 2×3÷1 | **6,0** | ✅ Lote |
+| B3 | La cadena infla `stats.tests`: `updateHistory` por respuesta (una cadena de 30 = 30 «tests hechos») | 3×3÷2 | **4,5** | ✅ Lote — desempata sobre sus iguales porque corrompe datos persistidos que alimentan readiness y radiografía y no se auto-reparan |
+| Q5 | Definiciones sin coma → términos basura de 60 chars (`DEFINITION_RE` codicioso) | 3×3÷2 | **4,5** | → Backlog #14 — el cupo de fondo del generador (3) ya está cubierto por Q1+Q2/Q6+Q3; primera candidata it.9 |
+| Q7 | Distractores numéricos sin concordancia («1 años») o delatores (entero entre decimales) | 3×3÷2 | **4,5** | → Backlog #14 — misma razón que Q5 |
+| U6 | La pestaña «Repaso» no contiene ni enlaza el «Repaso de falladas» (vive en Hacer test) | 3×3÷2 | **4,5** | → Backlog #17 — reorganización de UI sin core, mejor junto a U5 |
+| U7 | La cadena muestra la clave interna «todas» y el récord no aparece en Mis estadísticas | 2×2÷1 | **4,0** | → Backlog #19 — cosmético, por debajo del corte XS (≥6) |
+| B6 | `generateBtn` ignora el retorno de `credits.spend()` y ClaudeProvider no recorta a `affordable` (PROBABLE, no confirmado) | 3×2÷2 | **3,0** | → Backlog #18 — único hallazgo sin confirmar; verificar con proveedor real antes de arreglar |
+| U10 | Menores: «1 ejercicios», Banco lista 100 de N sin indicarlo, exportar sin feedback | 1×3÷1 | **3,0** | → Backlog #19 |
+| U4 | Recargar durante un simulacro pierde el examen sin aviso (sin persistencia ni `beforeunload`) | 4×2÷3 | **2,7** | → Backlog #15 — el único S-M de estado; merece diseño propio (persistir vs. avisar), no cabe tras Q1 |
+| U5 | Feedback inconsistente alert()/prompt() vs inline; en `file://` compartir cae a prompt de ~14.000 chars | 3×3÷4 | **2,3** | → Backlog #16 — M transversal; U1/U3/B5 del lote ya recortan sus peores casos |
+| Q8 | Test inverso inventa artículos inexistentes y repite opciones | 2×2÷2 | **2,0** | → Backlog #14 |
+| Q9 | La chuleta clasifica cualquier número como «plazo» | 2×2÷2 | **2,0** | → Backlog #14 |
+| U8 | «📊 Ver en radiografía» no resalta ni desplaza al artículo débil | 2×2÷2 | **2,0** | → Backlog #19 |
+| B9 | Colisión `OpoCore.THRESHOLDS` entre `quality.js` y `coverage.js` (hoy sin consumidor en navegador) | 1×1÷1 | **1,0** | → Backlog #20 — latente, sin síntoma actual |
+
+### Lote seleccionado y criterios de aceptación
+
+15 arreglos: los 11 XS confirmados con puntos ≥6, tres S (Q2+Q6, Q3, B3) y una M
+(Q1, la deuda del generador anotada desde it.1). Corte razonado: el generador es
+el corazón del producto (§1.3) y se lleva los arreglos de fondo Q1+Q2/Q6+Q3; B3
+entra por integridad de datos persistidos; todo lo demás con coste ≥S espera.
+Todo arreglo incluye su test de regresión (`node --test` para core; E2E/Playwright
+para flujos de UI, que era el encargo expreso del director).
+
+**B1/U2 — Ocultar el reto diario durante una sesión** (XS)
+- Con un test/simulacro/cadena en curso, `#dailyCard` no está visible ni operable;
+  al terminar o abandonar la sesión reaparece.
+- Test de regresión E2E: iniciar test → la tarjeta no existe en el DOM →
+  corregir → reaparece.
+
+**U3 — Limpiar `#share=` tras consumirlo** (XS)
+- Tras aceptar o rechazar la oferta, el hash desaparece de la URL
+  (`history.replaceState`) y recargar no la re-muestra.
+- Reimportar un test ya importado dice «ya lo tenías en el banco» en vez de
+  «0 añadidas»; con test de regresión (core de import + E2E de recarga).
+
+**U1 — Previsualización de coste al generar** (XS-S)
+- `#genCost` muestra coste estimado y saldo antes del clic y se actualiza al
+  cambiar la cantidad pedida; si créditos < pedido, aviso previo de recorte.
+- Test de regresión E2E: el texto de coste refleja cantidad y saldo.
+
+**Q2+Q6 — Cortar la doble extracción del parser** (S)
+- Los ítems de enumeración no se re-extraen como facts statement/number: en
+  SAMPLE_LAW, ningún par de preguntas del mismo lote comparte `sourceQuote`
+  (los 9 pares actuales desaparecen); con test de regresión.
+- Ningún statement generado procede de un ítem suelto de enumeración (los 12/33
+  actuales pasan a 0); suite existente del parser/generador en verde.
+
+**Q3 — Excluir citas legales como «dato» preguntado** (S)
+- Regex de exclusión compartida (generador, cloze, SRS, chuleta): «Ley N/AAAA»,
+  años y números de artículo no son seleccionables como hueco/valor.
+- En SAMPLE_LAW no se genera ninguna pregunta «¿Ley __/2015?»; con test de
+  regresión sobre los cuatro consumidores.
+
+**Q1 — Mitigación heurística del swap agramatical** (M)
+- `mutateSwap` preserva la puntuación final, exige terminación morfológica
+  aproximada compatible y filtra candidatos; el % de distractores swap/combo
+  inválidos sobre SAMPLE_LAW baja del 51% medido (umbral objetivo ≤20%,
+  medido por el mismo procedimiento del auditor); con tests de regresión de
+  los mutadores y suite actual en verde.
+- Si tras filtrar no hay 3 distractores válidos, la pregunta se descarta con
+  `reason` (no entra degradada al banco).
+
+**B2 — Recompensa de evaluador idempotente por pregunta** (XS)
+- Alternar 👍/👎 N veces sobre la misma pregunta paga como máximo una vez;
+  con test de regresión en core (`rewardEvaluator`/quality).
+
+**B4 — Deshabilitar tipos de sabotaje tras el veredicto** (XS)
+- Tras responder, los botones de tipo quedan deshabilitados y solo se puntúa el
+  primer veredicto; con test de regresión (core de trapGame + E2E).
+
+**B5 — Avisar del truncado al compartir** (XS)
+- Si el test supera MAX_SHARE, el emisor ve «se compartirán 10 de N» antes de
+  copiar, y el enlace de reto indica sobre cuántas preguntas es la nota a batir;
+  con test de regresión.
+
+**B7 — «✔ Corregir» de cloze de un solo uso** (XS)
+- Corregir deshabilita input y botón; la solución se muestra fuera del input y
+  no se re-evalúa; con test de regresión.
+
+**B8 — Racha solo con reto realmente respondido** (XS)
+- `completeDaily` no cuenta si todas las respuestas están en blanco (criterio
+  mínimo: ≥1 respuesta dada); con test de regresión en `daily.js`.
+
+**Q4 — Huecos con contorno de palabra** (XS)
+- `generator.js` y `srs.js` reutilizan el replace con lookarounds de `cloze.js`
+  (helper compartido); «A-1» nunca produce «A__1»; con test de regresión.
+
+**U9 — Pill de créditos sin decimales engañosos** (XS)
+- El pill muestra el entero disponible (floor) o «<1»; nunca «0.2 créditos»;
+  con test de regresión del formateo.
+
+**Q10 — Aviso de material insuficiente** (XS)
+- Si llegan menos preguntas de las pedidas, mensaje explícito con `factsUsed`
+  («el texto solo da para N»); con test de regresión.
+
+**B3 — La cadena no infla `stats.tests`** (S)
+- Una cadena completa cuenta como 1 en `stats.tests` (o categoría propia),
+  manteniendo el historial por pregunta para radiografía/readiness; con test de
+  regresión: cadena de 30 → `stats.tests` +1, `perQuestion` con 30 registros.
 
 ## Backlog priorizado (siguientes iteraciones)
 
@@ -335,6 +459,36 @@ tests de regresión y dejar cubierta E2E de los flujos clave.
 12. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
     «LPACAP» no fragmenten el banco.
 13. **PWA** (manifest + service worker) para estudiar offline en el móvil.
+14. **Calidad del generador, segunda tanda** (auditoría it.8: Q5, Q7, Q8, Q9):
+    `DEFINITION_RE` codicioso produce términos basura de 60 chars; distractores
+    numéricos sin concordancia («1 años») o delatores (entero entre decimales,
+    formato no conservado); el test inverso inventa artículos inexistentes y
+    repite opciones; la chuleta clasifica cualquier número como «plazo».
+    Cuatro S del corazón del producto: primeras candidatas para it.9, tras
+    verificar el efecto de Q1+Q2/Q6+Q3 del lote it.8.
+15. **Persistencia del simulacro en curso** (auditoría it.8: U4): recargar
+    durante un simulacro pierde el examen sin aviso. Decidir entre persistir
+    estado (timer incluido) en `userState` o, como mínimo, `beforeunload`;
+    S-M con diseño propio.
+16. **Unificar la capa de feedback** (auditoría it.8: U5): mitad `alert()`/
+    `prompt()` nativos, mitad UI inline; el peor caso (compartir en `file://`
+    cae a un prompt de ~14.000 caracteres) puede adelantarse como S suelto.
+17. **Reorganizar la pestaña «Repaso»** (auditoría it.8: U6): no contiene ni
+    enlaza el «Repaso de falladas» (vive en Hacer test); con falladas
+    registradas la pestaña ni las menciona.
+18. **Cobro robusto del generador IA** (auditoría it.8: B6, PROBABLE, único
+    hallazgo sin confirmar): `generateBtn` ignora el retorno de
+    `credits.spend()` y ClaudeProvider no recorta su salida a `affordable` →
+    preguntas gratis si el modelo devuelve de más. Confirmar con proveedor
+    real (hoy solo Demo lo recorta) y arreglar ambos extremos.
+19. **Menudencias de UI** (auditoría it.8: U7, U8, U10): clave interna «todas»
+    visible en la cadena y récord ausente de Mis estadísticas; «Ver en
+    radiografía» sin resalte ni scroll al artículo débil; «1 ejercicios» sin
+    singular; el Banco lista 100 de N sin indicarlo; exportar sin feedback.
+    Lote XS-S de barrido para cualquier hueco de iteración.
+20. **Higiene de namespace en `OpoCore`** (auditoría it.8: B9): colisión
+    `THRESHOLDS` entre `quality.js` y `coverage.js`; hoy sin consumidor en
+    navegador, arreglar antes de que alguno lo consuma.
 
 Nota de fusión (it.4): el antiguo punto «Mapa de calor del temario» sale del
 backlog al quedar absorbido por la «Radiografía del temario» seleccionada; el

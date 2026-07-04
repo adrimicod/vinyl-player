@@ -126,6 +126,22 @@ test('updateHistory registra y limpia las falsas certezas', () => {
   assert.deepEqual(user.falseCertaintyIds, []);
 });
 
+test('updateHistory con countAsTest:false no suma tests pero sí aciertos/fallos (B3)', () => {
+  const questions = makeQuestions(3).map((q) => Object.assign(q, { correctIndex: 0 }));
+  const user = {};
+  // Una «cadena» de 3 respuestas sueltas
+  for (let i = 0; i < 3; i++) {
+    quiz.updateHistory(user, quiz.scoreQuiz([questions[i]], [i === 2 ? 1 : 0]), { countAsTest: false });
+  }
+  assert.equal(user.stats.tests, 0, 'las respuestas sueltas no son tests');
+  assert.equal(user.stats.correct, 2);
+  assert.equal(user.stats.wrong, 1);
+  assert.equal(user.seenIds.length, 3);
+  // El comportamiento por defecto no cambia
+  quiz.updateHistory(user, quiz.scoreQuiz([questions[0]], [0]));
+  assert.equal(user.stats.tests, 1);
+});
+
 test('buildReviewQuiz prioriza las falsas certezas sobre el resto de falladas', () => {
   const questions = makeQuestions(6);
   const failed = ['q0', 'q1', 'q2', 'q3', 'q4'];

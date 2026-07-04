@@ -8,6 +8,9 @@
 (function () {
   'use strict';
 
+  const isNode = typeof module !== 'undefined' && typeof require !== 'undefined';
+  const parser = isNode ? require('./textParser.js') : window.OpoCore;
+
   const DAY_MS = 86400000;
   /** Intervalo en días hasta el próximo repaso, por caja (1-5). */
   const INTERVAL_DAYS = [0, 1, 3, 7, 16];
@@ -34,7 +37,8 @@
         front = '¿Qué se entiende por «' + f.term + '»?';
         back = f.definition;
       } else if (f.type === 'number') {
-        const gapped = f.sentence.replace(f.value, '____');
+        // gapReplace respeta contornos: no rompe siglas («A1») ni decimales.
+        const gapped = parser.gapReplace(f.sentence, f.value);
         if (gapped === f.sentence) continue;
         front = 'Completa: «' + gapped + '»';
         back = f.value;

@@ -109,7 +109,12 @@
    * Actualiza el historial del usuario tras corregir un test.
    * Muta y devuelve userState {seenIds: [], failedIds: [], stats}.
    */
-  function updateHistory(userState, scored) {
+  /**
+   * @param {object} [opts] {countAsTest: false} — para modos que corrigen
+   *   pregunta a pregunta (cadena): acumulan aciertos/fallos pero no deben
+   *   sumar un «test hecho» por cada respuesta.
+   */
+  function updateHistory(userState, scored, opts) {
     userState.seenIds = userState.seenIds || [];
     userState.failedIds = userState.failedIds || [];
     userState.falseCertaintyIds = userState.falseCertaintyIds || [];
@@ -143,7 +148,7 @@
         userState.falseCertaintyIds.splice(fcIdx, 1);
       }
     }
-    userState.stats.tests++;
+    if (!opts || opts.countAsTest !== false) userState.stats.tests++;
     userState.stats.correct += scored.correct;
     userState.stats.wrong += scored.wrong;
     userState.stats.blank += scored.blank;

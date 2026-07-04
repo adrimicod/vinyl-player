@@ -13,7 +13,6 @@
   const sim = isNode ? require('./similarity.js') : window.OpoCore;
   const gen = isNode ? require('./generator.js') : window.OpoCore;
 
-  const NUMBER_RE = /\b\d+(?:[.,]\d+)?\b/g;
   const MAX_CANDIDATES = 4;
 
   function hash(s) {
@@ -33,7 +32,8 @@
       out.push(w);
     };
     if (fact.type === 'number') {
-      for (const m of fact.sentence.matchAll(NUMBER_RE)) push(m[0]);
+      // Solo números examinables: nunca la cita «Ley 39/2015» ni años.
+      for (const value of parser.questionableNumbers(fact.sentence)) push(value);
     }
     if (fact.type === 'definition') {
       const key = fact.term.split(/\s+/).find((w) => sim.normalizeText(w).length >= 5);
@@ -66,15 +66,9 @@
     return deck;
   }
 
-  /** Oculta la PRIMERA aparición exacta de `word` (los números, con contorno). */
+  /** Oculta la PRIMERA aparición completa de `word` (contornos compartidos con el parser). */
   function replaceOnce(sentence, word) {
-    if (/^\d/.test(word)) {
-      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return sentence.replace(new RegExp('(?<![\\d.,])' + escaped + '(?![\\d.,])'), '____');
-    }
-    const idx = sentence.indexOf(word);
-    if (idx === -1) return sentence;
-    return sentence.slice(0, idx) + '____' + sentence.slice(idx + word.length);
+    return parser.gapReplace(sentence, word);
   }
 
   /**

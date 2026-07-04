@@ -92,7 +92,23 @@
   });
 
   function renderCredits() {
-    $('creditBalance').textContent = credits.credits;
+    // Se muestra el saldo entero utilizable: «0.2 créditos» sugiere poder
+    // generar cuando el coste mínimo es 1. El exacto queda en el tooltip.
+    const whole = Math.floor(credits.credits);
+    $('creditBalance').textContent = whole;
+    $('creditPill').title = 'Saldo exacto: ' + credits.credits + ' créditos (1 crédito = 1 pregunta generada)';
+    updateGenCost();
+  }
+
+  /** Previsualización del coste antes de generar (nunca gastar a ciegas). */
+  function updateGenCost() {
+    const box = $('genCost');
+    if (!box) return;
+    const count = parseInt($('genCount').value, 10) || 0;
+    const affordable = Math.min(count, credits.questionsAvailable());
+    box.textContent = affordable > 0
+      ? '· coste: ' + affordable + (affordable === 1 ? ' crédito' : ' créditos')
+      : '· sin créditos';
   }
 
   // ---------- Generar ----------
@@ -132,6 +148,8 @@
     $('sourceText').value = EXAMPLE.text;
     updateRecycleHint();
   });
+
+  $('genCount').addEventListener('change', updateGenCost);
 
   $('genProvider').addEventListener('change', () => {
     $('apiKeyLabel').classList.toggle('hidden', $('genProvider').value !== 'claude');
@@ -207,6 +225,10 @@
         el('p', {}, '✅ ' + questions.length + ' preguntas añadidas al banco (coste: ' + questions.length + ' créditos).'),
       ];
       if (affordable < count) parts.push(el('p', {}, '⚠️ Pediste ' + count + ' pero tus créditos solo permitían ' + affordable + '.'));
+      if (questions.length < affordable) {
+        parts.push(el('p', {}, '📄 El texto solo dio para ' + questions.length + ' de las ' + affordable +
+          ' pedidas: cada dato del texto genera una pregunta. Añade más artículos para llegar a más.'));
+      }
       if (discarded.length) {
         parts.push(el('p', {}, '🔍 ' + discarded.length + ' candidatas descartadas por el control de calidad:'));
         parts.push(el('ul', {}, discarded.slice(0, 5).map((d) => el('li', {}, d.reason))));
@@ -227,6 +249,7 @@
   /** Tarjeta «Reto de hoy»: hábito diario con racha, sin coste de créditos. */
   function renderDailyCard() {
     const card = $('dailyCard');
+    card.classList.remove('hidden');
     card.innerHTML = '';
     const done = C.isDailyDone(user.daily);
     const streak = user.daily.streak || 0;
@@ -315,6 +338,9 @@
     area.classList.remove('hidden');
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.add('hidden');
+    // Con un test en marcha, el «Reto de hoy» no puede quedar clicable:
+    // reemplazaría el test en curso sin confirmación.
+    $('dailyCard').classList.add('hidden');
 
     const isExam = currentQuiz.mode === 'exam';
     if (isExam) area.appendChild(examHeader());
@@ -363,6 +389,7 @@
     currentChain = { chain: C.createChain(), pool, rng: C.createRng(Math.floor(Math.random() * 1e9)) };
     $('quizSetup').classList.add('hidden');
     $('quizResult').classList.add('hidden');
+    $('dailyCard').classList.add('hidden');
     nextChainStep();
   }
 
@@ -401,8 +428,9 @@
   function answerChainStep(question, answerIndex) {
     const { chain } = currentChain;
     const result = C.answerChain(chain, question, answerIndex);
-    // La cadena también alimenta el historial (visto/fallado/perQuestion)
-    C.updateHistory(user, C.scoreQuiz([question], [answerIndex]));
+    // La cadena alimenta el historial pregunta a pregunta, pero solo cuenta
+    // como UN test hecho (se suma al terminar, en endChain).
+    C.updateHistory(user, C.scoreQuiz([question], [answerIndex]), { countAsTest: false });
     if (result.correct) {
       saveUser();
       return nextChainStep();
@@ -417,6 +445,8 @@
     const { chain } = currentChain;
     user.chainRecords = user.chainRecords || {};
     const beaten = C.updateChainRecords(user.chainRecords, chain.streak, chainLeyKey());
+    user.stats = user.stats || { tests: 0, correct: 0, wrong: 0, blank: 0 };
+    user.stats.tests++; // la cadena completa cuenta como un único test
     saveUser();
     const area = $('quizArea');
     area.innerHTML = '';
@@ -554,7 +584,11 @@
     const ephemeral = currentQuiz.mode === 'reverse' || currentQuiz.mode === 'shared';
     if (!ephemeral) C.updateHistory(user, scored);
     let dailyResult = null;
-    if (currentQuiz.mode === 'daily') dailyResult = C.completeDaily(user.daily);
+    // Entregar el reto totalmente en blanco no mantiene la racha: el hábito
+    // que premia la racha es estudiar, no abrir la app.
+    if (currentQuiz.mode === 'daily' && scored.blank < scored.total) {
+      dailyResult = C.completeDaily(user.daily);
+    }
     let pace = null;
     if (currentQuiz.mode === 'exam' && currentQuiz.exam) {
       stopExamTicker();
@@ -610,6 +644,9 @@
       bannerChildren.push(el('div', { class: 'detail streak' }, dailyResult.counted
         ? '🔥 ¡Reto diario completado! Racha: ' + dailyResult.streak + ' día' + (dailyResult.streak > 1 ? 's' : '') + '.'
         : '🔥 El reto de hoy ya contaba para tu racha (' + dailyResult.streak + ').'));
+    } else if (currentQuiz.mode === 'daily') {
+      bannerChildren.push(el('div', { class: 'detail warn' },
+        '🔥 Un reto entregado todo en blanco no cuenta para la racha: responde al menos una pregunta.'));
     }
     // Reto compartido: veredicto contra el marcador del retador
     if (currentQuiz.challenge) {
@@ -649,6 +686,11 @@
           challenge = { alias: user.alias, score10: currentQuiz.scored.score10 };
         }
       }
+      if (currentQuiz.questions.length > C.MAX_SHARE) {
+        const goOn = confirm('Los enlaces llevan como máximo ' + C.MAX_SHARE + ' preguntas: se compartirán las ' +
+          C.MAX_SHARE + ' primeras de las ' + currentQuiz.questions.length + ' de este test. ¿Continuar?');
+        if (!goOn) return;
+      }
       const fragment = C.encodeShare(currentQuiz.questions, { challenge });
       const url = location.href.split('#')[0] + '#' + fragment;
       const done = () => alert('Enlace copiado. Cualquiera que lo abra podrá hacer este test e importar las preguntas a su banco.');
@@ -672,6 +714,9 @@
       alert('Test compartido: ' + e.message);
       return;
     }
+    // El hash se consume: si quedara en la URL, cada recarga re-ofrecería el
+    // mismo test y el reimport parecería un error («0 añadidas»).
+    history.replaceState(null, '', location.pathname + location.search);
     document.querySelector('[data-tab="quiz"]').click();
     const setup = $('quizSetup');
     const offer = el('div', { class: 'card share-offer', id: 'shareOffer' }, [
@@ -714,10 +759,13 @@
     const box = el('div', { class: 'q-actions' });
     const feedback = el('span', { class: 'voted' }, '');
     const doVote = (value) => {
+      // La recompensa de evaluador se paga solo con el PRIMER voto sobre la
+      // pregunta: cambiar el sentido no es evaluar de nuevo (anti-granja).
+      const firstVote = !C.hasVoted(q, USER_ID);
       const { changed } = C.vote(q, USER_ID, value);
       if (!changed) { feedback.textContent = 'Ya habías votado eso.'; return; }
       bank.update(q.id, { quality: q.quality });
-      rewardEvaluation();
+      if (firstVote) rewardEvaluation();
       C.applyAuthorReward(q, credits) && bank.update(q.id, { quality: q.quality });
       // El corrector de una errata cobra cuando la comunidad confirma su arreglo
       C.applyCorrectorReward(q, credits) && bank.update(q.id, { quality: q.quality });
@@ -1042,25 +1090,30 @@
       inputs.push(input);
       box.appendChild(el('div', { class: 'row cloze-row' }, [input, hintBtn, hintSpan]));
     });
+    const correctBtn = el('button', {
+      class: 'btn primary',
+      onclick: (ev) => {
+        // Un solo uso: re-corregir contaminaría los inputs con la solución.
+        ev.currentTarget.disabled = true;
+        let allCorrect = true;
+        round.answers.forEach((word, i) => {
+          const res = C.checkClozeAnswer(word, inputs[i].value);
+          inputs[i].classList.add(res.correct ? 'cloze-ok' : 'cloze-bad');
+          inputs[i].disabled = true;
+          if (!res.correct) {
+            allCorrect = false;
+            // La solución va en un rótulo aparte, nunca dentro del input
+            inputs[i].insertAdjacentElement('afterend',
+              el('span', { class: 'cloze-solution' }, '→ ' + word + (res.close ? ' (¡casi!)' : '')));
+          }
+        });
+        box.appendChild(el('div', { class: 'explanation' },
+          (allCorrect ? '✅ ¡Literal clavado!' : '📖 Revisa el literal completo arriba.') +
+          (round.ref ? ' (' + round.ref + ')' : '')));
+      },
+    }, '✔ Corregir');
     box.appendChild(el('div', { class: 'row' }, [
-      el('button', {
-        class: 'btn primary',
-        onclick: () => {
-          let allCorrect = true;
-          round.answers.forEach((word, i) => {
-            const res = C.checkClozeAnswer(word, inputs[i].value);
-            inputs[i].classList.remove('cloze-ok', 'cloze-bad');
-            inputs[i].classList.add(res.correct ? 'cloze-ok' : 'cloze-bad');
-            if (!res.correct) {
-              allCorrect = false;
-              inputs[i].value = inputs[i].value + '  →  ' + word + (res.close ? ' (¡casi!)' : '');
-            }
-          });
-          box.appendChild(el('div', { class: 'explanation' },
-            (allCorrect ? '✅ ¡Literal clavado!' : '📖 Revisa el literal completo arriba.') +
-            (round.ref ? ' (' + round.ref + ')' : '')));
-        },
-      }, '✔ Corregir'),
+      correctBtn,
       el('button', { class: 'btn', onclick: () => $('clozeStartBtn').click() }, '↻ Otro ejercicio'),
     ]));
     area.appendChild(box);
@@ -1158,9 +1211,12 @@
   }
 
   function finishTrapRound(pickedKind) {
+    if (currentTrapRound.finished) return; // un solo veredicto por ronda
+    currentTrapRound.finished = true;
     const { round, picked } = currentTrapRound;
     const verdict = C.checkAnswer(round, picked, pickedKind);
     const area = $('trapArea');
+    area.querySelectorAll('.btn.small').forEach((b) => { b.disabled = true; });
     area.querySelectorAll('.trap-option').forEach((optEl, i) => {
       if (i === round.trapIndex) optEl.classList.add('wrong');
       optEl.disabled = true;
