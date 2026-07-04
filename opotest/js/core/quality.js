@@ -145,10 +145,13 @@
     return true;
   }
 
-  const api = { score, computeStatus, vote, hasVoted, reportErrata, resolveErrata, applyAuthorReward, applyCorrectorReward, rewardEvaluator, THRESHOLDS, REWARDS };
+  // Al espacio compartido OpoCore va QUALITY_THRESHOLDS: coverage.js exporta
+  // su propio umbral y con el nombre genérico THRESHOLDS el último en cargar
+  // pisaría al otro. En Node cada módulo mantiene su THRESHOLDS clásico.
+  const api = { score, computeStatus, vote, hasVoted, reportErrata, resolveErrata, applyAuthorReward, applyCorrectorReward, rewardEvaluator, QUALITY_THRESHOLDS: THRESHOLDS, REWARDS };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
+    module.exports = Object.assign({ THRESHOLDS }, api);
   } else {
     window.OpoCore = Object.assign(window.OpoCore || {}, api);
   }

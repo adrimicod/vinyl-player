@@ -115,10 +115,12 @@
     return grid.sort((a, b) => a.ley.localeCompare(b.ley));
   }
 
-  const api = { buildCoverageGrid, parseArticleRange, articleOf, THRESHOLDS };
+  // Al espacio compartido OpoCore va COVERAGE_THRESHOLDS (quality.js exporta
+  // su propio umbral; el nombre genérico THRESHOLDS colisionaba).
+  const api = { buildCoverageGrid, parseArticleRange, articleOf, COVERAGE_THRESHOLDS: THRESHOLDS };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
+    module.exports = Object.assign({ THRESHOLDS }, api);
   } else {
     window.OpoCore = Object.assign(window.OpoCore || {}, api);
   }

@@ -279,12 +279,19 @@
     }
     const list = el('ol', { class: 'session-agenda' });
     for (const b of session.blocks) {
+      const count = b.items.length;
+      const countLabel = count ? count + (count === 1 ? ' ítem, ' : ' ítems, ') : '';
       list.appendChild(el('li', {}, [
         el('strong', {}, b.label + ' '),
-        el('span', { class: 'hint' }, '(' + (b.items.length || b.reason.match(/^\d+/) || '') + (b.items.length ? ' ítems, ' : '') + '~' + b.estMinutes + ' min) — ' + b.reason),
+        el('span', { class: 'hint' }, '(' + countLabel + '~' + b.estMinutes + ' min) — ' + b.reason),
       ]));
     }
     agenda.appendChild(list);
+    if (session.totalMinutes < budget * 0.7) {
+      agenda.appendChild(el('p', { class: 'hint' },
+        '⏳ Solo hay material para ~' + session.totalMinutes + ' de los ' + budget +
+        ' min pedidos: genera más preguntas o crea flashcards para llenar tu sesión.'));
+    }
     agenda.appendChild(el('button', {
       class: 'btn primary',
       onclick: () => {
@@ -332,6 +339,9 @@
     $('dailyCard').classList.add('hidden');
     $('sessionCard').classList.add('hidden');
     area.appendChild(sessionHeader());
+    area.appendChild(el('div', { class: 'row' }, [
+      el('button', { class: 'btn', onclick: exitQuiz }, '✖ Abandonar sesión'),
+    ]));
     const queue = block.items.slice();
     const next = () => {
       if (!queue.length) {
@@ -373,34 +383,45 @@
     const area = $('quizArea');
     area.innerHTML = '';
     area.classList.remove('hidden');
+    const hasWrong = practiced.some((r) => r.outcome === 'wrong');
     const parts = [
       el('div', { class: 'big' }, '⚡ Sesión completada'),
-      el('div', { class: 'detail' }, practiced.length + ' preguntas trabajadas. Las falladas quedan pendientes de rescate: acredítalas en el ticket de salida.'),
+      el('div', { class: 'detail' }, hasWrong
+        ? practiced.length + ' preguntas trabajadas. Las falladas quedan pendientes de rescate: acredítalas en el ticket de salida.'
+        : '🏆 ' + practiced.length + ' preguntas trabajadas sin fallar ninguna. Nada que rescatar.'),
     ];
-    const ticket = C.buildExitTicket(practiced, bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
     const row = el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' });
-    if (ticket.length) {
-      row.appendChild(el('button', { class: 'btn primary', onclick: () => startExitTicket(ticket) }, '🎟 Ticket de salida (' + ticket.length + ')'));
+    if (hasWrong) {
+      const ticket = C.buildExitTicket(practiced, bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
+      if (ticket.length) {
+        row.appendChild(el('button', { class: 'btn primary', onclick: () => startExitTicket(ticket) }, '🎟 Ticket de salida (' + ticket.length + ')'));
+      }
     }
-    row.appendChild(el('button', { class: 'btn', onclick: exitQuiz }, '↩ Terminar'));
+    row.appendChild(el('button', { class: 'btn' + (hasWrong ? '' : ' primary'), onclick: exitQuiz }, '↩ Terminar'));
     parts.push(row);
     area.appendChild(el('div', { class: 'score-banner' }, parts));
   }
 
-  /** Micro-examen de consolidación: solo rescata lo que se acierta aquí. */
-  function startExitTicket(questions) {
-    currentQuiz = { questions, submitted: false, mode: 'ticket' };
+  /** Micro-examen de cierre: rescata (sesión) o consolida (tras test normal). */
+  function startExitTicket(questions, opts) {
+    currentQuiz = { questions, submitted: false, mode: 'ticket', consolidateOnly: !!(opts && opts.consolidateOnly) };
     renderQuizArea();
     $('quizArea').insertBefore(el('div', { class: 'exam-header' }, [
       el('strong', {}, '🎟 Ticket de salida'),
-      el('p', { class: 'hint' }, 'Última pasada sobre lo recién trabajado: solo lo que aciertes ahora se rescata del repaso.'),
+      el('p', { class: 'hint' }, currentQuiz.consolidateOnly
+        ? 'Repaso inmediato de lo fallado para fijarlo. No rescata: eso se gana acertándolas en otra sesión.'
+        : 'Última pasada sobre lo recién trabajado: solo lo que aciertes ahora se rescata del repaso.'),
     ]), $('quizArea').firstChild);
   }
 
   /** Tarjeta «Reto de hoy»: hábito diario con racha, sin coste de créditos. */
   function renderDailyCard() {
     const card = $('dailyCard');
-    card.classList.remove('hidden');
+    // Con un test/sesión/cadena en marcha la tarjeta no puede reaparecer
+    // (cambiar de pestaña y volver la resucitaba y destruía el test en curso).
+    const busy = (currentQuiz && !currentQuiz.submitted) || currentSession || currentChain;
+    card.classList.toggle('hidden', !!busy);
+    if (busy) return;
     card.innerHTML = '';
     const done = C.isDailyDone(user.daily);
     const streak = user.daily.streak || 0;
@@ -427,6 +448,9 @@
 
   function renderQuizSetup() {
     renderDailyCard();
+    // El compositor tampoco puede reaparecer sobre un test/sesión en curso
+    const busy = (currentQuiz && !currentQuiz.submitted) || currentSession || currentChain;
+    $('sessionCard').classList.toggle('hidden', !!busy);
     const select = $('quizLey');
     const previous = select.value;
     select.innerHTML = '<option value="">Todas</option>';
@@ -486,9 +510,17 @@
   });
 
   function renderQuizArea() {
+    // Un lanzamiento externo (falladas, gemelas, celda de radiografía…)
+    // abandona la sesión en curso: si no, el test heredaría su encadenado.
+    if (currentSession && !['session', 'daily', 'ticket'].includes(currentQuiz.mode)) {
+      currentSession = null;
+    }
     const area = $('quizArea');
     area.innerHTML = '';
     area.classList.remove('hidden');
+    // Vaciar (no solo ocultar) el banner anterior: sus botones vivos
+    // permitían saltarse bloques con una doble activación.
+    $('quizResult').innerHTML = '';
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.add('hidden');
     // Con un test en marcha, ni el «Reto de hoy» ni el compositor pueden
@@ -564,8 +596,8 @@
       el('div', { class: 'row' }, [
         el('strong', {}, '🔗 Cadena: ' + chain.streak),
         el('span', { class: 'spacer' }),
-        el('span', { class: 'hint' }, 'Récord: ' + (records.global || 0) +
-          ' · ' + chainLeyKey() + ': ' + ((records.byLey || {})[chainLeyKey()] || 0)),
+        el('span', { class: 'hint' }, 'Récord global: ' + (records.global || 0) +
+          ' · ' + (chainLeyKey() === 'todas' ? 'todas las leyes' : chainLeyKey()) + ': ' + ((records.byLey || {})[chainLeyKey()] || 0)),
       ]),
       el('p', { class: 'hint' }, 'Muerte súbita: al primer fallo se acabó.'),
     ]));
@@ -612,7 +644,7 @@
         : '🏆 ¡Banco agotado sin fallar! Cadena invicta de ' + chain.streak + '.'),
     ];
     if (beaten.globalBeaten) parts.push(el('div', { class: 'detail warn' }, '🏅 ¡Nuevo récord global!'));
-    else if (beaten.leyBeaten) parts.push(el('div', { class: 'detail warn' }, '🏅 ¡Nuevo récord de ' + chainLeyKey() + '!'));
+    else if (beaten.leyBeaten) parts.push(el('div', { class: 'detail warn' }, '🏅 ¡Nuevo récord de ' + (chainLeyKey() === 'todas' ? 'todas las leyes' : chainLeyKey()) + '!'));
     parts.push(el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
       el('button', { class: 'btn primary', onclick: () => startChain(currentChain.pool) }, '🔗 Otra cadena'),
       el('button', { class: 'btn', onclick: exitQuiz }, '↩ Salir'),
@@ -739,20 +771,30 @@
     currentQuiz.scored = scored;
     // Detector de estudio-confort: se evalúa ANTES de updateHistory para que
     // el propio test no contamine el diagnóstico.
-    const comfortCheck = ['normal', 'session', 'daily'].includes(currentQuiz.mode)
+    // No aplica a tests que la propia app recomendó con dominadas a propósito
+    // (Antióxido, entrenar tipo): recomendarlo y luego reñir sería absurdo.
+    const comfortCheck = ['normal', 'session', 'daily'].includes(currentQuiz.mode) && !currentQuiz.recommended
       ? C.assessSession(scored, user.perQuestion)
       : { ok: false };
     // Los modos efímeros (inverso, test compartido sin importar) no tocan el
     // historial: sus preguntas no viven en el banco.
     const ephemeral = currentQuiz.mode === 'reverse' || currentQuiz.mode === 'shared';
     let ticketRescued = 0;
+    let ticketHadRescuable = false;
     if (currentQuiz.mode === 'ticket') {
-      // El ticket rescata lo acertado y no cuenta como test aparte
-      ticketRescued = C.applyTicketRescue(user, scored);
-      C.updateHistory(user, scored, { countAsTest: false });
-    } else if (currentQuiz.mode === 'session') {
-      // Rescate diferido: el acierto en sesión no saca la fallada del repaso;
-      // eso lo decide el ticket de salida.
+      ticketHadRescuable = currentQuiz.questions.some((tq) => (user.failedIds || []).includes(tq.id));
+      if (currentQuiz.consolidateOnly) {
+        // Ticket tras un test normal: la solución se acaba de mostrar, así
+        // que acertarla ahora es memoria a corto plazo — consolida, no rescata.
+        C.updateHistory(user, scored, { countAsTest: false, noRescue: true });
+      } else {
+        // Ticket de cierre de sesión: el árbitro del rescate diferido
+        ticketRescued = C.applyTicketRescue(user, scored);
+        C.updateHistory(user, scored, { countAsTest: false });
+      }
+    } else if (currentQuiz.mode === 'session' || (currentSession && currentQuiz.mode === 'daily')) {
+      // Rescate diferido: dentro de la sesión (incluido su bloque de reto
+      // diario) el acierto no saca la fallada del repaso; lo decide el ticket.
       C.updateHistory(user, scored, { noRescue: true });
     } else if (!ephemeral) {
       C.updateHistory(user, scored);
@@ -863,8 +905,17 @@
         ' ya las dominabas: este test te ha enseñado poco nuevo.'));
     }
     if (currentQuiz.mode === 'ticket') {
-      bannerChildren.push(el('div', { class: 'detail streak' },
-        '🎟 ' + (ticketRescued ? ticketRescued + ' pregunta' + (ticketRescued > 1 ? 's' : '') + ' rescatada' + (ticketRescued > 1 ? 's' : '') + ' del repaso.' : 'Nada rescatado: lo fallado sigue pendiente.')));
+      let ticketMsg;
+      if (currentQuiz.consolidateOnly) {
+        ticketMsg = 'Consolidación: acabas de ver las soluciones, así que esto no rescata — las falladas saldrán del repaso cuando las aciertes en otra sesión.';
+      } else if (ticketRescued) {
+        ticketMsg = ticketRescued + ' pregunta' + (ticketRescued > 1 ? 's' : '') + ' rescatada' + (ticketRescued > 1 ? 's' : '') + ' del repaso.';
+      } else if (ticketHadRescuable) {
+        ticketMsg = 'Nada rescatado: lo fallado sigue pendiente.';
+      } else {
+        ticketMsg = 'No había nada que rescatar: puro repaso de consolidación.';
+      }
+      bannerChildren.push(el('div', { class: 'detail streak' }, '🎟 ' + ticketMsg));
     }
 
     const actionRow = el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' });
@@ -900,11 +951,12 @@
           },
         }, '🎯 Ir a lo útil'));
       }
-      // Ticket de salida también tras un test normal con material que rescatar
+      // Ticket también tras un test normal, pero SOLO como consolidación:
+      // la solución acaba de mostrarse y acertarla ya no demuestra nada.
       if (currentQuiz.mode === 'normal' || currentQuiz.mode === 'failed') {
         const ticket = C.buildExitTicket(scored.results, bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
         if (ticket.length && scored.wrong > 0) {
-          actionRow.appendChild(el('button', { class: 'btn', onclick: () => startExitTicket(ticket) }, '🎟 Ticket de salida'));
+          actionRow.appendChild(el('button', { class: 'btn', onclick: () => startExitTicket(ticket, { consolidateOnly: true }) }, '🎟 Consolidar fallos'));
         }
       }
     }
@@ -1211,6 +1263,9 @@
       list.appendChild(el('p', { class: 'hint' }, 'Aún no hay preguntas. Genera las primeras en la pestaña «Generar».'));
       return;
     }
+    if (total > items.length) {
+      list.appendChild(el('p', { class: 'hint' }, 'Mostrando las ' + items.length + ' más recientes de ' + total + '.'));
+    }
     for (const q of items) {
       const score = C.score(q.quality);
       const openErratas = (q.quality.erratas || []).filter((e) => !e.resolved).length;
@@ -1229,11 +1284,14 @@
   }
 
   $('exportBtn').addEventListener('click', () => {
+    const n = bank.all().length;
+    if (!n) return alert('El banco está vacío: no hay nada que exportar.');
     const blob = new Blob([bank.exportJSON()], { type: 'application/json' });
     const a = el('a', { href: URL.createObjectURL(blob), download: 'opotest-banco.json' });
     document.body.appendChild(a);
     a.click();
     a.remove();
+    $('bankSummary').textContent = '⬇ Exportadas ' + n + ' preguntas a opotest-banco.json · ' + $('bankSummary').textContent;
   });
 
   $('importBtn').addEventListener('click', () => $('importFile').click());
@@ -1270,8 +1328,10 @@
       }
     }
     saveUser();
-    alert('🧠 ' + res.added + ' flashcards nuevas' + (res.skipped ? ' (' + res.skipped + ' ya existían)' : '') +
-      (clozeAdded ? ' y ⌨️ ' + clozeAdded + ' ejercicios de completar' : '') + '. Todo en la pestaña «Repaso».');
+    const cardsTxt = res.added === 1 ? '1 flashcard nueva' : res.added + ' flashcards nuevas';
+    const clozeTxt = clozeAdded === 1 ? '1 ejercicio de completar' : clozeAdded + ' ejercicios de completar';
+    alert('🧠 ' + cardsTxt + (res.skipped ? ' (' + res.skipped + ' ya existían)' : '') +
+      (clozeAdded ? ' y ⌨️ ' + clozeTxt : '') + '. Todo en la pestaña «Repaso».');
   });
 
   // ---------- Chuleta sinóptica imprimible ----------
@@ -1328,9 +1388,11 @@
   }
 
   function renderReview() {
-    renderFailedCard();
-    renderStalenessCard();
+    // Cada tarjeta se inserta arriba: el orden de llamada es el INVERSO de la
+    // prioridad visual (falladas arriba, como en el compositor de sesión).
     renderTwinsCard();
+    renderStalenessCard();
+    renderFailedCard();
     renderSrs();
     renderTrapIntro();
     renderClozeInfo();
@@ -1344,11 +1406,13 @@
     if (!cold.length) return;
     const card = el('div', { class: 'card', id: 'stalenessCard' }, [
       el('h2', {}, '🧊 ' + cold.length + ' dominada' + (cold.length > 1 ? 's' : '') + ' se está' + (cold.length > 1 ? 'n' : '') + ' enfriando'),
-      el('p', { class: 'hint' }, 'Preguntas que sabes pero llevas tiempo sin ver: repásalas antes de que el olvido las borre.'),
+      el('p', { class: 'hint' }, 'Las preguntas que sabes pero llevan más tests sin aparecer: repásalas antes de que el olvido las borre.'),
       el('button', {
         class: 'btn primary',
         onclick: () => {
-          currentQuiz = { questions: cold.slice(0, 10), submitted: false, mode: 'normal' };
+          // recommended: la app lo pide a propósito con dominadas → el
+          // detector de confort no debe reñir por hacerle caso
+          currentQuiz = { questions: cold.slice(0, 10), submitted: false, mode: 'normal', recommended: true };
           document.querySelector('[data-tab="quiz"]').click();
           renderQuizArea();
         },
@@ -1363,11 +1427,9 @@
     const old = document.getElementById('twinsCard');
     if (old) old.remove();
     const pairs = C.findConfusablePairs(bank.active(), user);
+    if (!pairs.length) return; // sin pares no hay tarjeta: un cajón vacío arriba solo estorba
     const card = el('div', { class: 'card', id: 'twinsCard' }, [el('h2', {}, '👯 Parejas confundibles')]);
-    if (!pairs.length) {
-      card.appendChild(el('p', { class: 'hint' },
-        'Sin parejas confundibles todavía: aparecen cuando fallas una pregunta muy parecida a otra del banco (los «artículos gemelos» que confunden en el examen).'));
-    } else {
+    {
       card.appendChild(el('p', { class: 'hint' }, pairs.length + ' pareja' + (pairs.length > 1 ? 's' : '') +
         ' detectada' + (pairs.length > 1 ? 's' : '') + ': dos preguntas casi iguales donde caes. Respóndelas seguidas y aprende a distinguirlas.'));
       card.appendChild(el('button', {
@@ -1606,7 +1668,8 @@
       seenIds: user.seenIds,
       rng: C.createRng(Math.floor(Math.random() * 1e9)),
     });
-    currentQuiz = { questions, submitted: false, mode: 'normal' };
+    // recommended: entrenamiento propuesto por la app → sin aviso de confort
+    currentQuiz = { questions, submitted: false, mode: 'normal', recommended: true };
     document.querySelector('[data-tab="quiz"]').click();
     renderQuizArea();
   }
@@ -1721,9 +1784,11 @@
       rng: C.createRng(Math.floor(Math.random() * 1e9)),
     });
     if (!readiness.ok) {
-      readyBox.appendChild(el('p', { class: 'hint' },
-        'Aún no hay datos suficientes: has practicado ' + readiness.attempted + ' de las ' +
-        readiness.needed + ' preguntas mínimas. Haz más tests y vuelve.'));
+      // Con banco menor que el mínimo, «haz más tests» sería inalcanzable
+      const advice = bank.active().length < readiness.needed
+        ? 'Tu banco tiene ' + bank.active().length + ' preguntas activas y el medidor necesita ' + readiness.needed + ': genera más preguntas primero.'
+        : 'Has practicado ' + readiness.attempted + ' de las ' + readiness.needed + ' mínimas. Haz más tests y vuelve.';
+      readyBox.appendChild(el('p', { class: 'hint' }, 'Aún no hay datos suficientes. ' + advice));
     } else {
       const pct = Math.round(readiness.passRate * 100);
       readyBox.appendChild(el('div', { class: 'readiness-dial ' + (pct >= 70 ? 'good' : pct >= 40 ? 'medium' : 'weak') }, [

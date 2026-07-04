@@ -78,6 +78,44 @@ test('composeSession es determinista', () => {
   assert.deepEqual(composeSession(20, inputs()), composeSession(20, inputs()));
 });
 
+test('las razones del planner concuerdan en singular (auditoría it.12)', () => {
+  const session = composeSession(40, {
+    dueCards: [{ id: 'c1' }],
+    falseCertainties: manyQuestions('fc', 1),
+    failed: manyQuestions('f', 1),
+    cold: manyQuestions('cold', 1),
+    fresh: manyQuestions('n', 1),
+    dailyPending: false,
+  });
+  for (const b of session.blocks) {
+    assert.ok(!/1 [a-zá]+s (que llevan|vencen|nuevas)/.test(b.reason), 'plural con 1: ' + b.reason);
+  }
+  // Y ninguna razón promete tiempo real: la señal de frío es posicional
+  const cold = session.blocks.find((b) => b.type === 'cold');
+  assert.ok(!/mucho sin ver|tiempo sin ver/.test(cold.reason), 'promete tiempo: ' + cold.reason);
+});
+
+test('un acierto redime también los rompe-cadenas (auditoría it.12)', () => {
+  const questions = [Object.assign(q('q1'), { correctIndex: 0 })];
+  const user = { failedIds: ['q1'], chainBreakerIds: ['q1'] };
+  quiz.updateHistory(user, quiz.scoreQuiz(questions, [0]));
+  assert.deepEqual(user.chainBreakerIds, [], 'dominada: sale de rompe-cadenas');
+  // Con noRescue (sesión) se mantiene, como las falladas
+  const user2 = { failedIds: ['q1'], chainBreakerIds: ['q1'] };
+  quiz.updateHistory(user2, quiz.scoreQuiz(questions, [0]), { noRescue: true });
+  assert.deepEqual(user2.chainBreakerIds, ['q1']);
+});
+
+test('los umbrales viajan a OpoCore sin colisión (QUALITY_/COVERAGE_THRESHOLDS)', () => {
+  const quality = require('../js/core/quality.js');
+  const coverage = require('../js/core/coverage.js');
+  assert.ok(quality.QUALITY_THRESHOLDS.RETIRE_SCORE < 0);
+  assert.ok(coverage.COVERAGE_THRESHOLDS.GOOD > 0);
+  // Compatibilidad Node: cada módulo conserva su THRESHOLDS clásico
+  assert.deepEqual(quality.THRESHOLDS, quality.QUALITY_THRESHOLDS);
+  assert.deepEqual(coverage.THRESHOLDS, coverage.COVERAGE_THRESHOLDS);
+});
+
 // ---------- exitTicket ----------
 
 test('buildExitTicket solo usa lo trabajado y prioriza falladas', () => {

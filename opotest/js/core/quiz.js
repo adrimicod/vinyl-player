@@ -157,6 +157,11 @@
       } else if (r.outcome === 'correct' && fcIdx !== -1 && !noRescue) {
         userState.falseCertaintyIds.splice(fcIdx, 1);
       }
+      // Rompe-cadenas (si el estado los usa): un acierto también los redime
+      if (Array.isArray(userState.chainBreakerIds) && r.outcome === 'correct' && !noRescue) {
+        const cbIdx = userState.chainBreakerIds.indexOf(r.id);
+        if (cbIdx !== -1) userState.chainBreakerIds.splice(cbIdx, 1);
+      }
     }
     if (!opts || opts.countAsTest !== false) userState.stats.tests++;
     userState.stats.correct += scored.correct;

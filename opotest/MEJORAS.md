@@ -641,7 +641,7 @@ esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
   bloquea ni penaliza.
 - 0 IA, 0 créditos; solo lee datos ya persistidos (`perQuestion`).
 
-## Iteración 12 — Rama PULIR: auditoría end-to-end de la superficie it.10-11 y cierre consolidado del ciclo (en curso)
+## Iteración 12 — Rama PULIR: auditoría end-to-end de la superficie it.10-11 y cierre consolidado del ciclo (completada)
 
 **Decisión del agente director**: PULIR.
 Se cumple la señal pro-pulir «≥2-3 iteraciones seguidas explorando» que it.11
@@ -672,6 +672,32 @@ los módulos nuevos) deben ejercitar la app real; el priorizador compone el
 lote incluyendo, si cabe, el barrido de residuales confirmados (#19, #20);
 todo arreglo con su test de regresión y cobertura E2E de la sesión guiada,
 suite en verde al cierre.
+
+### Lote seleccionado (priorización directa sobre los informes de los 2 auditores)
+
+Los auditores entregaron 16 hallazgos ya clasificados por gravedad con causa
+y arreglo; al ser la iteración de cierre se priorizó en línea (documentado
+aquí) en vez de relanzar un tercer agente. Criterio: todos los CONFIRMADOS
+de gravedad alta/media + los residuales #19/#20 (XS). Todo con regresión.
+
+| # | Hallazgo (auditor) | Veredicto |
+|---|--------------------|-----------|
+| A | currentSession residual: lanzadores externos heredan el encadenado (bugs#1, alta) | ✅ Lote — renderQuizArea limpia la sesión salvo en modos de sesión |
+| B | «Reto de hoy» resucita con cambio de pestaña sobre un test (bugs#2=ux#1, alta) | ✅ Lote — regresión del fix it.8 por otra vía; guard en renderDailyCard |
+| C | El bloque daily embebido salta el rescate diferido (bugs#3, media) | ✅ Lote |
+| D | Antióxido recomendado y luego reñido por el detector de confort (ux#2, alta) | ✅ Lote — flag «recommended» que silencia el aviso |
+| E | Ticket: miente sin fallos, y tras test normal rescata a corto plazo (ux#4+ux#5, media) | ✅ Lote — celebrar sin ticket; ticket post-test solo consolida (no rescata) |
+| F | «Enfriándose» afirma tiempo pero la señal es posicional (ux#3, media-alta) | ✅ Lote (copy honesto); señal temporal real (lastSeenAt) → backlog |
+| G | El presupuesto 10/20/40 no explica el déficit de material (ux#6, media) | ✅ Lote — aviso «solo hay material para X min» |
+| H | Repaso con jerarquía invertida y tarjeta de gemelas vacía arriba (ux#7, media) | ✅ Lote |
+| I | Bloque de flashcards sin salida (bugs#5, media-baja) | ✅ Lote — botón abandonar |
+| J | chainBreakerIds nunca se limpia (bugs#6, baja) | ✅ Lote — limpieza en updateHistory (tolerante) |
+| K | Colisión OpoCore.THRESHOLDS quality/coverage (#20, bugs#7) | ✅ Lote — renombrado QUALITY_/COVERAGE_THRESHOLDS |
+| L | Menudencias #19: «1 ejercicios», «todas», banco 100/N, export sin feedback, plurales del planner (bugs#8) | ✅ Lote (XS) |
+| — | «Ver en radiografía» sin resaltar celda (ux#8/bugs#8) | → Backlog (S, requiere estado de resaltado) |
+| — | Consejo de readiness inalcanzable con banco pequeño (ux#8) | ✅ Lote — «genera más preguntas» si banco < mínimo |
+| — | Doble activación de «Siguiente bloque» salta bloques (bugs#4) | ✅ Lote — quizResult se vacía al re-renderizar |
+| — | Cada bloque de sesión suma un «test hecho» (nota de diseño) | → Backlog (decisión de producto) |
 
 ## Backlog priorizado (siguientes iteraciones)
 
