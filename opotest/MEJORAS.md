@@ -641,6 +641,38 @@ esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
   bloquea ni penaliza.
 - 0 IA, 0 créditos; solo lee datos ya persistidos (`perQuestion`).
 
+## Iteración 12 — Rama PULIR: auditoría end-to-end de la superficie it.10-11 y cierre consolidado del ciclo (en curso)
+
+**Decisión del agente director**: PULIR.
+Se cumple la señal pro-pulir «≥2-3 iteraciones seguidas explorando» que it.11
+ya anticipó al dejar «it.12 apuntada a PULIR para cerrar el ciclo consolidado»:
+it.10 + it.11 han sumado 6 módulos de core nuevos (profile, staleness,
+confusables, sessionPlanner, exitTicket, comfort) y ~260 líneas de wiring en
+`app.js` (ya en 1.823 líneas: compositor con encadenado de bloques, tarjetas
+dentro de sesión, ticket de salida, avisos de confort) sin una sola pasada de
+auditoría ni cobertura E2E — la superficie crece más rápido que la
+verificación, exactamente el patrón que rindió 27 hallazgos en it.8. La suite
+está en verde (225/225, `node --test`, 24 ficheros) pero solo cubre `core/`:
+el flujo integrado de la sesión guiada (agenda → bloques → confort → ticket) y
+sus interacciones con los mecanismos preexistentes (rescate diferido de
+`failedIds`, `updateHistory` con flag opt-in, reto diario dentro del
+compositor) nunca se han ejercitado sobre la app real. Además el backlog
+conserva hallazgos confirmados de auditorías previas sin cerrar (#19
+menudencias XS, #20 colisión `THRESHOLDS` latente) que un lote de pulido puede
+barrer. Siendo la ÚLTIMA iteración del ciclo, prima cerrar consolidado (§2.1):
+terminar explorando dejaría dos iteraciones de features sin auditar; el ratio
+queda en 6 explorar : 3 pulir.
+**Foco encargado a los agentes de la rama**: auditar y pulir end-to-end la
+superficie de it.10-11 — el flujo completo de la sesión guiada (compositor →
+bloques encadenados → aviso de confort → ticket de salida y su rescate
+diferido) y la integración de profile/staleness/confusables en Mi cuenta,
+Repaso y radiografía; los auditores (lentes correctness/bugs, UX-coherencia y
+persistencia de `userState`, calidad de las decisiones de estudio que emiten
+los módulos nuevos) deben ejercitar la app real; el priorizador compone el
+lote incluyendo, si cabe, el barrido de residuales confirmados (#19, #20);
+todo arreglo con su test de regresión y cobertura E2E de la sesión guiada,
+suite en verde al cierre.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
