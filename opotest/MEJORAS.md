@@ -470,6 +470,29 @@ directo al modo repaso de falladas desde la pestaña Repaso.
 **Verificación del efecto it.8** — test de regresión anti-fuga: ninguna
 opción correcta se repite entre preguntas del mismo lote generado.
 
+## Iteración 10 — Rama EXPLORAR: personalización del estudio sobre los datos ya persistidos (en curso)
+
+**Decisión del agente director**: EXPLORAR.
+Las tres condiciones pro-explorar de §2.1 se cumplen a la vez: (1) dos pasadas de
+pulido consecutivas acaban de cerrar (it.8 con lote de 15 + it.9 con los 7 hallazgos
+confirmados restantes de la auditoría, commit `c99d1aa`) y el backlog de pulido quedó
+drenado — lo que resta no justifica una tercera pasada (#18 es el único PROBABLE sin
+confirmar y exige proveedor real, #19 son menudencias XS de barrido, #20 es latente
+sin consumidor en navegador); (2) la app está estable y verificada: suite en verde
+198/198 (`node --test`, 22 ficheros) con los E2E de flujos clave que encargó it.8;
+(3) hay huecos de propuesta de valor evidentes frente a la visión §1: el backlog de
+features acumula señales fuertes sin atender (repaso espaciado de falladas como #1
+histórico, perfil de fallo/confusiones con propuestas independientes en it.6 e it.7),
+y la app ya persiste datos ricos (`perQuestion` con historial por pregunta, confianza,
+tags `mutation`, cajas SRS) que ninguna feature explota aún de forma transversal. El
+ratio acumulado queda en 5 explorar : 2 pulir, dentro del umbral de §2.1.
+**Foco encargado a los agentes de la rama**: explorar la personalización del estudio
+a partir de los datos que la app ya persiste (historial por pregunta, confianza,
+falladas, SRS, radiografía, readiness) — que el subagente de ideas proponga, sin ver
+el backlog, funcionalidades que conviertan esos datos en decisiones de estudio para
+el opositor; el evaluador puntuará contra §1.3 (0 IA / 0 créditos preferente, núcleo
+puro testeable) y compondrá la selección con sus criterios de aceptación.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y
