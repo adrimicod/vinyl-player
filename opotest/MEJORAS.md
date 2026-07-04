@@ -260,6 +260,28 @@ testeados) sobre abrir frentes grandes.
 - Récords persisten en `userState`/localStorage; solo preguntas activas del
   banco: 0 créditos, 0 IA.
 
+## Iteración 8 — Rama PULIR: flujo end-to-end de las modalidades y consolidación de la UI (en curso)
+
+**Decisión del agente director**: PULIR.
+Las iteraciones 3-7 han sido **cinco iteraciones seguidas de la rama explorar** (el
+umbral de §2.1 es ≥2-3), que han sumado ~13 features y 12 módulos nuevos de core sin
+una sola pasada de consolidación; la superficie de UI crece más rápido que la
+verificación: `app.js` está en 1.345 líneas sin ningún test propio ni E2E desde el
+manual de la iteración 1, mientras la suite (182 tests, en verde) solo cubre `core/`.
+Hay deuda anotada sin cerrar: el mutador de intercambio quedó «Mitigado…; solución
+completa en F1 con verificador IA» (it.1 #3), y los propios evaluadores señalaron
+riesgos que nadie ha verificado con rodaje («estimar con pocos datos engaña» en
+`readiness`, it.5; «readiness lleva una iteración de rodaje… un pronóstico poco
+fiable desmotiva», it.6-7). Además, features recién publicadas (simulacro, taller de
+erratas, cloze, chuleta, cadena) no tienen constancia de QA sobre la app real.
+**Foco encargado a los agentes de la rama**: pulir el flujo end-to-end de las
+modalidades de estudio acumuladas en it.3-7 (test normal, reto diario, simulacro
+cronometrado, repaso/flashcards/cloze, juegos reverse/trapGame/cadena, taller de
+erratas y editor manual) y la coherencia de la UI orquestadora: los auditores deben
+ejercitar la app real con las lentes correctness/bugs, UX-coherencia-persistencia de
+`userState`, y calidad de preguntas del generador; el lote resultante debe incluir
+tests de regresión y dejar cubierta E2E de los flujos clave.
+
 ## Backlog priorizado (siguientes iteraciones)
 
 1. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y
