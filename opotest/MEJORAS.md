@@ -550,7 +550,7 @@ esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
 - Degradación explícita testeada: banco sin pares suficientes → «sin parejas
   confundibles todavía», sin romper la app ni ofrecer el modo vacío.
 
-## Iteración 11 — Rama EXPLORAR: la sesión de estudio guiada (en curso)
+## Iteración 11 — Rama EXPLORAR: la sesión de estudio guiada (completada)
 
 **Decisión del agente director**: EXPLORAR.
 La superficie nueva de it.10 (profile, staleness, confusables + wiring en Mi
@@ -580,82 +580,152 @@ backlog funcionalidades de planificación/orquestación de la sesión (0 IA /
 §1.3 cruzando con las señales acumuladas del backlog, dimensionando el lote en
 S-M: la penúltima iteración no abre frentes L que it.12 no pueda consolidar.
 
+Fase creativa del flujo §2.1: el subagente de ideas propuso 7 ideas dentro del
+foco; evaluación del subagente evaluador (impacto usuario / encaje visión §1.3 /
+esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
+
+| # | Idea | Imp. | Enc. | Esf. | Ries. | Total | Veredicto |
+|---|------|------|------|------|-------|-------|-----------|
+| 1 | «Estudia ahora»: compositor de sesión con presupuesto de tiempo | 5 | 5 | 3 | 4 | **17** | ✅ Seleccionada — ES la mitad «sesión a medida» del backlog #1 en su **quinta señal** (it.6 + it.7 + it.10 ×2 + esta), la familia más propuesta del proyecto, y responde literalmente al foco del director («qué estudiar ahora mismo y por qué»). Todos los ingredientes existen ya como módulos puros (`srs.dueCards`, `staleness.coldIds`/`orderFailedByAge`, falsas certezas, `daily`): el compositor es orquestación pura sobre datos actuales, sin pronósticos — esquiva la objeción de «estimaciones jóvenes» exactamente como pedía la fusión it.10. Columna vertebral de la iteración. |
+| 2 | Ticket de salida | 4 | 5 | 4 | 4 | **17** | ✅ Seleccionada — la verificación diferida (una fallada solo se «rescata» si se acierta al cerrar la sesión) es retrieval real, la técnica con más evidencia, y arregla de paso un sesgo actual: hoy un acierto inmediato post-fallo saca la pregunta de `failedIds` sin demostrar retención. Cierre natural de la sesión del compositor (idea 1). Riesgo acotado: el flag no-rescatar en `quiz.updateHistory` es opt-in y no cambia el comportamiento por defecto. |
+| 6 | Detector de estudio-confort | 4 | 5 | 4 | 4 | **17** | ✅ Seleccionada — ataca la trampa nº1 del opositor (repasar lo ya sabido para sentirse bien) con la honestidad de §1.3 («calidad sobre cantidad» aplicada al propio estudio); reutiliza el criterio de dominio de `staleness.isMastered` y su CTA convierte el diagnóstico en decisión: enlaza con el bloque útil del compositor. S barato que completa el arco de la sesión guiada: componer (1) → avisar si no aporta (6) → verificar al salir (2). |
+| 5 | Diagnóstico exprés (placement) | 3 | 4 | 4 | 4 | **15** | → Backlog (nuevo) — buen alimentador del compositor, pero solo sirve en el arranque en frío, una ventana de uso estrecha en F0 (el usuario genera su banco antes de tener volumen que estratificar), y el criterio de degradación a usuario nuevo de la idea 1 ya cubre parte del hueco. Esperar a que el compositor demuestre uso. |
+| 3 | Previsión de carga semanal | 3 | 4 | 4 | 3 | **14** | → Backlog, fusionada con «cuenta atrás» (#3 nuevo, familia proyección temporal) — la mitad sólida es proyectar vencimientos Leitner (el estado SRS sí tiene fechas reales); la mitad frágil es el «cruce al tercio frío»: `staleness` es posicional (recencia relativa en `seenIds`), no temporal, así que ese cruce no es proyectable a 7 días sin inventar datos. Como primer paso barato de la familia, anotada en la fusión. |
+| 4 | Cuenta atrás: ritmo hasta el examen | 4 | 3 | 3 | 2 | **12** | → Backlog, fusionada con #3 nuevo — **cuarta vez rechazada** (it.6 #8, it.7 #3, it.10 #8). El «rodaje» que las tres iteraciones pidieron para `readiness` no se ha producido: rodaje significa uso real que valide las estimaciones, y F0 sigue sin usuarios; además el «ritmo observado» que esta versión introduce necesita datos que hoy no existen (no hay log con timestamps — lo señala la propia idea 7). Estrenar un pronóstico motivacional justo antes de la pasada PULIR de it.12 es el peor encaje de calendario posible. |
+| 7 | Bitácora de sesiones + momento óptimo del día | 3 | 3 | 3 | 2 | **11** | → Backlog (nuevo) — infraestructura nueva (log append-only con timestamps) cuyo valor aparece tras semanas de datos que la iteración no puede verificar, y el «momento óptimo del día» es propenso a ruido incluso con umbral (pocas sesiones por franja). Lo valioso a conservar: la bitácora es el prerrequisito del «ritmo observado» de la cuenta atrás — anotada como tal. |
+
+### Seleccionadas y criterios de aceptación
+
+**Idea 1 — «Estudia ahora»: compositor de sesión con presupuesto** (esfuerzo M)
+- Nuevo `core/sessionPlanner.js` puro: `composeSession(budgetMinutes, inputs)`
+  con entradas explícitas (falsas certezas, falladas ordenadas por antigüedad
+  vía `staleness.orderFailedByAge`, tarjetas vencidas de `srs.dueCards`, frías
+  de `staleness.coldIds`, reto diario si no está hecho) → agenda ordenada de
+  bloques cuya duración estimada nunca excede el presupuesto (10/20/40);
+  determinista con RNG y reloj inyectables (patrón `daily.js`/`srs.js`);
+  presupuestos, prioridades entre fuentes y fuentes vacías cubiertos con
+  `node --test`.
+- Cada bloque lleva su `reason` textual («12 tarjetas vencidas», «4 falsas
+  certezas de la Ley 39/2015») visible en la agenda; los bloques se encadenan
+  automáticamente con barra de progreso y cada resultado alimenta los
+  mecanismos existentes (`updateHistory`, `srs.review`) sin contadores
+  paralelos.
+- Guard de usuario nuevo testeado: sin historial suficiente la sesión degrada
+  a bloques genéricos (reto diario + nunca vistas) sin romper ni prometer
+  diagnóstico; 0 IA, 0 créditos.
+
+**Idea 2 — Ticket de salida** (esfuerzo S)
+- Nuevo `core/exitTicket.js` puro: `buildExitTicket(sessionIds, scored, bank)`
+  selecciona hasta 3 preguntas SOLO de lo trabajado en la sesión/test recién
+  cerrado, priorizando falladas y falsas certezas; RNG inyectable; tests:
+  nunca incluye preguntas ajenas a la sesión, prioriza falladas sobre
+  acertadas, sesión con <3 candidatas produce ticket menor o vacío sin error.
+- Rescate diferido: una fallada solo sale de `failedIds` si se acierta en el
+  ticket; `quiz.updateHistory` acepta un flag opt-in (no-rescatar) cuyo
+  comportamiento por defecto no cambia (suite de regresión actual en verde);
+  ambos caminos —con y sin flag— testeados con `node --test`.
+- Declinar el ticket no penaliza: las falladas simplemente quedan pendientes
+  de rescate para la siguiente sesión; integrado como cierre tanto del
+  compositor (idea 1) como de un test normal.
+
+**Idea 6 — Detector de estudio-confort** (esfuerzo S)
+- Nuevo `core/comfort.js` puro: `assessSession(scored, perQuestion, opts)` →
+  fracción del test que ya estaba dominada antes de empezar (criterio de
+  dominio reutilizado de `staleness.isMastered`), con umbral configurable
+  (defecto 70%) y guard de datos mínimos: por debajo de un mínimo de preguntas
+  con historial devuelve «sin veredicto», nunca un falso aviso; testeado con
+  `node --test` (sesión de confort detectada, sesión útil no marcada, guard).
+- El aviso aparece solo tras corregir, con tono informativo («N de M ya las
+  dominabas: este test te ha enseñado poco nuevo») y CTA que lanza el bloque
+  útil del compositor (idea 1) o, en su defecto, el repaso de falladas; nunca
+  bloquea ni penaliza.
+- 0 IA, 0 créditos; solo lee datos ya persistidos (`perQuestion`).
+
 ## Backlog priorizado (siguientes iteraciones)
 
-1. **Plan de estudio: sesión a medida + cuenta atrás al examen** (ideas
-   subagente, it.6 + it.7 + it.10 ×2, fusionadas — cuatro señales, la familia
-   más propuesta del backlog vivo): la vía de entrada recomendada es la
-   «sesión a medida de 15 min» (aportación it.10): compone la sesión óptima
-   desde datos actuales (falsas certezas + falladas + artículos rojos +
-   nunca vistas + flashcards vencidas) con receta explicada («por qué te
-   pregunto esto»), en `core/coach.js`, sin depender de fecha de examen ni de
-   pronósticos — esquiva la objeción de «estimaciones jóvenes» que tumbó tres
-   veces la cuenta atrás. La cuenta atrás con reparto de lo pendiente y
-   semáforo en-plazo/retrasado (`planner.js`, L, rechazada it.6 + it.7 +
-   it.10) queda como extensión posterior, cuando `readiness` tenga rodaje.
-2. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
+1. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
    propuestas independientes): speechSynthesis lee pregunta, opciones y
    corrección, respuesta con teclas y fallback silencioso. Mantener el
    `core/audioQueue.js` de it.6 (secuenciación testeable) frente al «sin core»
    de it.7. Persiste el riesgo de voces en español desiguales por navegador y
    `file://`; validar con prueba manual.
-3. **Test por distribución de temas en la UI** — el core ya lo soporta
+2. **Test por distribución de temas en la UI** — el core ya lo soporta
    (`buildDistributedQuiz`, «40 de A, 30 de B, 30 de C»); falta la UI de reparto.
+3. **Cuenta atrás al examen + previsión de carga** (resto del antiguo #1 tras
+   seleccionarse la «sesión a medida» en it.11, fusionado con las ideas 3 y 4
+   del subagente it.11 — cuarta vez rechazada la cuenta atrás: it.6 + it.7 +
+   it.10 + it.11): fecha de examen + volumen restante ÷ días + ritmo observado
+   con semáforo (`pacing.js`), y previsión de 7 días de vencimientos Leitner
+   con «adelanta N hoy» (`forecast.js`). Primer paso barato si se desbloquea:
+   la previsión de vencimientos SRS (fechas reales ya persistidas); el «cruce
+   al tercio frío» NO es proyectable (staleness es posicional, no temporal).
+   Bloqueada por dos prerrequisitos: rodaje real de `readiness` y la bitácora
+   con timestamps (#9) para el «ritmo observado».
 4. **Némesis: «las 10 que creo que vas a fallar»** (idea subagente, it.10):
    test con las preguntas de menor probabilidad personal (`successProbability`
    de readiness sobre `perQuestion`), con predicción de nota antes y veredicto
    al corregir; rescata las preguntas de acierto mediocre que nunca entran en
    `failedIds`. Núcleo puro `nemesis.js`, esfuerzo S. Requiere el mismo guard
    de datos mínimos que readiness (it.5).
-5. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
+5. **Diagnóstico exprés (placement)** (idea subagente, it.11): test
+   estratificado de ~10 maximizando señal (1 por artículo sin intentos, ≥1 por
+   `kind`) para el arranque en frío; al corregir, salta al compositor de
+   sesión. Núcleo puro `placement.js`, esfuerzo S. Esperar a que el compositor
+   (it.11) demuestre uso: su guard de usuario nuevo ya cubre parte del hueco.
+6. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
    reales de una enumeración + 1 colado de otra; núcleo puro
    `intruderGame.js` sobre los `facts` del parser. Esperar a que la familia de
    juegos (reverse, trapGame, flashcards) demuestre uso antes de ampliarla.
-6. **Explícalo antes de mirar** (idea subagente, it.7): al fallar (o acertar
+7. **Explícalo antes de mirar** (idea subagente, it.7): al fallar (o acertar
    dudando) el usuario escribe su razonamiento y la app lo compara con
    `explanation`+`sourceQuote` (Jaccard) señalando conceptos ausentes; núcleo
    puro `selfExplain.js`. Riesgo: el feedback por solape de tokens sobre texto
    libre puede ser ruido; prototipar la calidad del feedback antes de
    comprometer UI.
-7. **Cinturones por artículo** (idea subagente, it.10): 🥉/🥈/🥇 por celda de
+8. **Cinturones por artículo** (idea subagente, it.10): 🥉/🥈/🥇 por celda de
    radiografía según acierto+intentos, con «examen de cinturón» para subir
    (5 preguntas, mín. 4, muerte al 2º fallo) y vitrina en Mi cuenta. Núcleo
    puro `mastery.js`. Gamificación sin decisión de estudio nueva: esperar
    señal de uso, como con la familia de juegos.
-8. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
-9. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
-   (cambiar de usuario activo y ver votos/recompensas cruzadas).
-10. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local» + it.7
+9. **Bitácora de sesiones + momento óptimo del día** (idea subagente, it.11):
+   log append-only con timestamps de cada sesión (hoy no existe) → bitácora
+   semanal y franja horaria de mayor acierto con umbral anti-ruido
+   (`sessionLog.js`, M). Su valor aparece tras semanas de datos; es además el
+   prerrequisito del «ritmo observado» de la cuenta atrás (#3).
+10. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
+11. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
+    (cambiar de usuario activo y ver votos/recompensas cruzadas).
+12. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local» + it.7
     «fantasma con ritmo real» + it.10 «duelo contra tu yo pasado», fusionadas
     — cuarta re-propuesta): la variante it.10 abarata la repetición (fantasma
     simulado desde la probabilidad histórica por pregunta, determinista con
     semilla del día, `core/ghost.js`) frente a grabar ritmo real, pero el
     «reto compartido» (it.4) sigue cubriendo la competición social a una
     fracción del coste; baja prioridad salvo señal de demanda de usuarios.
-11. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
+13. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
     con un prompt barato («¿es la marcada la única respuesta correcta según la fuente?»).
-12. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
+14. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
     «LPACAP» no fragmenten el banco.
-13. **PWA** (manifest + service worker) para estudiar offline en el móvil.
-14. **Persistencia completa del simulacro en curso** (resto de la auditoría
+15. **PWA** (manifest + service worker) para estudiar offline en el móvil.
+16. **Persistencia completa del simulacro en curso** (resto de la auditoría
     it.8 U4): it.9 añadió el aviso `beforeunload`; persistir el estado del
     examen (timer incluido) en `userState` queda como decisión de diseño
     propia (S-M), anotada como candidata F1.
-15. **Unificar la capa de feedback** (resto de la auditoría it.8 U5): mitad
+17. **Unificar la capa de feedback** (resto de la auditoría it.8 U5): mitad
     `alert()`/`prompt()` nativos, mitad UI inline; el peor caso (compartir en
     `file://` caía a un prompt de ~14.000 caracteres) quedó cerrado en it.9;
     resta la unificación M transversal.
-16. **Cobro robusto del generador IA** (auditoría it.8: B6, PROBABLE, único
+18. **Cobro robusto del generador IA** (auditoría it.8: B6, PROBABLE, único
     hallazgo sin confirmar): `generateBtn` ignora el retorno de
     `credits.spend()` y ClaudeProvider no recorta su salida a `affordable` →
     preguntas gratis si el modelo devuelve de más. Confirmar con proveedor
     real (hoy solo Demo lo recorta) y arreglar ambos extremos.
-17. **Menudencias de UI** (auditoría it.8: U7, U8, U10): clave interna «todas»
+19. **Menudencias de UI** (auditoría it.8: U7, U8, U10): clave interna «todas»
     visible en la cadena y récord ausente de Mis estadísticas; «Ver en
     radiografía» sin resalte ni scroll al artículo débil; «1 ejercicios» sin
     singular; el Banco lista 100 de N sin indicarlo; exportar sin feedback.
     Lote XS-S de barrido para cualquier hueco de iteración.
-18. **Higiene de namespace en `OpoCore`** (auditoría it.8: B9): colisión
+20. **Higiene de namespace en `OpoCore`** (auditoría it.8: B9): colisión
     `THRESHOLDS` entre `quality.js` y `coverage.js`; hoy sin consumidor en
     navegador, arreglar antes de que alguno lo consuma.
 
@@ -698,3 +768,12 @@ artículo» entran como puntos nuevos (#4 y #7). Además, los antiguos #14
 (calidad del generador, segunda tanda) y #17 (pestaña Repaso) salen al quedar
 cerrados por la it.9, y #15/#16 se reescriben como residuales de lo que it.9
 dejó hecho.
+
+Nota de fusión (it.11): la «sesión a medida» (la mitad del antiguo #1, cuatro
+señales acumuladas) sale del backlog al ser seleccionada como «Estudia ahora»;
+la «cuenta atrás» (la otra mitad, cuarta vez rechazada) permanece fusionada con
+la «previsión de carga semanal» (idea 3 del subagente it.11) como #3, familia
+de proyección temporal con dos prerrequisitos anotados; «diagnóstico exprés» y
+«bitácora de sesiones» entran como puntos nuevos (#5 y #9). El «ticket de
+salida» y el «detector de estudio-confort», seleccionados, no dejan rastro en
+el backlog al ser ideas nuevas sin gemelas previas.

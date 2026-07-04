@@ -392,6 +392,11 @@ input.cloze-bad { outline: 2px solid var(--bad); }
 .kind-row.weakest { background: rgba(231, 76, 60, 0.08); border-radius: 8px; }
 .twins-compare .explanation { margin-top: 4px; }
 
+/* ---- Estudia ahora (it.11) ---- */
+.session-card { border: 1px solid var(--accent-2); }
+.session-agenda { margin: 10px 0 12px 22px; font-size: 0.9rem; }
+.session-agenda li { margin: 6px 0; line-height: 1.45; }
+
 /* ---- Chuleta ---- */
 .cheatsheet table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 0.85rem; }
 .cheatsheet td { border-bottom: 1px solid #26314a; padding: 6px 8px; vertical-align: top; }

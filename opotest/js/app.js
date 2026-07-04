@@ -245,6 +245,157 @@
   // ---------- Hacer test ----------
 
   let currentQuiz = null;
+  let currentSession = null;
+
+  // ---------- «Estudia ahora»: compositor de sesión ----------
+
+  function sessionInputs() {
+    const active = bank.active();
+    const byId = new Map(active.map((x) => [x.id, x]));
+    const fcSet = new Set(user.falseCertaintyIds || []);
+    return {
+      dueCards: C.dueCards(user.srs),
+      falseCertainties: (user.falseCertaintyIds || []).map((id) => byId.get(id)).filter(Boolean),
+      failed: C.orderFailedByAge(user.failedIds, user.seenIds)
+        .filter((id) => !fcSet.has(id)).map((id) => byId.get(id)).filter(Boolean),
+      cold: C.coldMasteredQuestions(active, user),
+      fresh: active.filter((x) => !(user.seenIds || []).includes(x.id)),
+      dailyPending: !C.isDailyDone(user.daily) && active.length >= C.DAILY_COUNT,
+      dailyCount: C.DAILY_COUNT,
+    };
+  }
+
+  $('composeSessionBtn').addEventListener('click', () => {
+    const budget = parseInt($('sessionBudget').value, 10);
+    const session = C.composeSession(budget, sessionInputs());
+    const agenda = $('sessionAgenda');
+    agenda.innerHTML = '';
+    if (!session.blocks.length) {
+      agenda.appendChild(el('p', { class: 'hint' }, 'Nada que componer: genera preguntas o crea flashcards primero.'));
+      return;
+    }
+    if (session.degraded) {
+      agenda.appendChild(el('p', { class: 'hint' }, 'Aún no hay historial que diagnosticar: sesión genérica para empezar a generar señal.'));
+    }
+    const list = el('ol', { class: 'session-agenda' });
+    for (const b of session.blocks) {
+      list.appendChild(el('li', {}, [
+        el('strong', {}, b.label + ' '),
+        el('span', { class: 'hint' }, '(' + (b.items.length || b.reason.match(/^\d+/) || '') + (b.items.length ? ' ítems, ' : '') + '~' + b.estMinutes + ' min) — ' + b.reason),
+      ]));
+    }
+    agenda.appendChild(list);
+    agenda.appendChild(el('button', {
+      class: 'btn primary',
+      onclick: () => {
+        currentSession = { blocks: session.blocks, index: 0, practiced: [] };
+        runSessionBlock();
+      },
+    }, '▶ Empezar sesión (' + session.totalMinutes + ' min)'));
+  });
+
+  function sessionHeader() {
+    const { blocks, index } = currentSession;
+    const b = blocks[index];
+    return el('div', { class: 'exam-header' }, [
+      el('div', { class: 'row' }, [
+        el('strong', {}, '⚡ Bloque ' + (index + 1) + ' de ' + blocks.length + ' · ' + b.label),
+        el('span', { class: 'spacer' }),
+        el('span', { class: 'hint' }, '~' + b.estMinutes + ' min'),
+      ]),
+      el('p', { class: 'hint' }, 'Por qué: ' + b.reason),
+    ]);
+  }
+
+  function runSessionBlock() {
+    const { blocks, index } = currentSession;
+    if (index >= blocks.length) return finishSession();
+    const block = blocks[index];
+    if (block.type === 'cards') return runSessionCards(block);
+    if (block.type === 'daily') {
+      const { questions } = C.buildDailyQuiz(bank.active(), {});
+      currentQuiz = { questions, submitted: false, mode: 'daily' };
+    } else {
+      currentQuiz = { questions: block.items, submitted: false, mode: 'session' };
+    }
+    renderQuizArea();
+    $('quizArea').insertBefore(sessionHeader(), $('quizArea').firstChild);
+  }
+
+  /** Bloque de flashcards dentro de la sesión (mismo SRS, otra pantalla). */
+  function runSessionCards(block) {
+    const area = $('quizArea');
+    area.innerHTML = '';
+    area.classList.remove('hidden');
+    $('quizSetup').classList.add('hidden');
+    $('quizResult').classList.add('hidden');
+    $('dailyCard').classList.add('hidden');
+    $('sessionCard').classList.add('hidden');
+    area.appendChild(sessionHeader());
+    const queue = block.items.slice();
+    const next = () => {
+      if (!queue.length) {
+        currentSession.index++;
+        return runSessionBlock();
+      }
+      const card = user.srs.cards[queue[0].id] || queue[0];
+      area.querySelectorAll('.flashcard').forEach((n) => n.remove());
+      const box = el('div', { class: 'flashcard' }, [
+        el('div', { class: 'meta' }, 'Caja ' + card.box + ' · quedan ' + queue.length),
+        el('div', { class: 'front' }, card.front),
+      ]);
+      const reveal = el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          reveal.remove();
+          box.appendChild(el('div', { class: 'back' }, card.back));
+          box.appendChild(el('div', { class: 'row' }, [['know', '😎 La sabía'], ['doubt', '🤔 Dudé'], ['fail', '❌ No la sabía']].map(([grade, label]) =>
+            el('button', {
+              class: 'btn small',
+              onclick: () => {
+                C.review(user.srs, card.id, grade);
+                saveUser();
+                queue.shift();
+                next();
+              },
+            }, label))));
+        },
+      }, '👁 Mostrar respuesta');
+      box.appendChild(reveal);
+      area.appendChild(box);
+    };
+    next();
+  }
+
+  function finishSession() {
+    const practiced = currentSession.practiced;
+    currentSession = null;
+    const area = $('quizArea');
+    area.innerHTML = '';
+    area.classList.remove('hidden');
+    const parts = [
+      el('div', { class: 'big' }, '⚡ Sesión completada'),
+      el('div', { class: 'detail' }, practiced.length + ' preguntas trabajadas. Las falladas quedan pendientes de rescate: acredítalas en el ticket de salida.'),
+    ];
+    const ticket = C.buildExitTicket(practiced, bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
+    const row = el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' });
+    if (ticket.length) {
+      row.appendChild(el('button', { class: 'btn primary', onclick: () => startExitTicket(ticket) }, '🎟 Ticket de salida (' + ticket.length + ')'));
+    }
+    row.appendChild(el('button', { class: 'btn', onclick: exitQuiz }, '↩ Terminar'));
+    parts.push(row);
+    area.appendChild(el('div', { class: 'score-banner' }, parts));
+  }
+
+  /** Micro-examen de consolidación: solo rescata lo que se acierta aquí. */
+  function startExitTicket(questions) {
+    currentQuiz = { questions, submitted: false, mode: 'ticket' };
+    renderQuizArea();
+    $('quizArea').insertBefore(el('div', { class: 'exam-header' }, [
+      el('strong', {}, '🎟 Ticket de salida'),
+      el('p', { class: 'hint' }, 'Última pasada sobre lo recién trabajado: solo lo que aciertes ahora se rescata del repaso.'),
+    ]), $('quizArea').firstChild);
+  }
 
   /** Tarjeta «Reto de hoy»: hábito diario con racha, sin coste de créditos. */
   function renderDailyCard() {
@@ -340,9 +491,10 @@
     area.classList.remove('hidden');
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.add('hidden');
-    // Con un test en marcha, el «Reto de hoy» no puede quedar clicable:
-    // reemplazaría el test en curso sin confirmación.
+    // Con un test en marcha, ni el «Reto de hoy» ni el compositor pueden
+    // quedar clicables: reemplazarían el test en curso sin confirmación.
     $('dailyCard').classList.add('hidden');
+    $('sessionCard').classList.add('hidden');
 
     const isExam = currentQuiz.mode === 'exam';
     if (isExam) area.appendChild(examHeader());
@@ -392,6 +544,7 @@
     $('quizSetup').classList.add('hidden');
     $('quizResult').classList.add('hidden');
     $('dailyCard').classList.add('hidden');
+    $('sessionCard').classList.add('hidden');
     nextChainStep();
   }
 
@@ -566,6 +719,9 @@
     stopExamTicker();
     currentQuiz = null;
     currentChain = null;
+    currentSession = null;
+    $('sessionCard').classList.remove('hidden');
+    $('sessionAgenda').innerHTML = '';
     $('quizArea').classList.add('hidden');
     $('quizResult').classList.add('hidden');
     $('quizSetup').classList.remove('hidden');
@@ -581,10 +737,29 @@
     const scored = C.scoreQuiz(currentQuiz.questions, answers, { confidences: currentQuiz.confidences });
     currentQuiz.submitted = true;
     currentQuiz.scored = scored;
+    // Detector de estudio-confort: se evalúa ANTES de updateHistory para que
+    // el propio test no contamine el diagnóstico.
+    const comfortCheck = ['normal', 'session', 'daily'].includes(currentQuiz.mode)
+      ? C.assessSession(scored, user.perQuestion)
+      : { ok: false };
     // Los modos efímeros (inverso, test compartido sin importar) no tocan el
     // historial: sus preguntas no viven en el banco.
     const ephemeral = currentQuiz.mode === 'reverse' || currentQuiz.mode === 'shared';
-    if (!ephemeral) C.updateHistory(user, scored);
+    let ticketRescued = 0;
+    if (currentQuiz.mode === 'ticket') {
+      // El ticket rescata lo acertado y no cuenta como test aparte
+      ticketRescued = C.applyTicketRescue(user, scored);
+      C.updateHistory(user, scored, { countAsTest: false });
+    } else if (currentQuiz.mode === 'session') {
+      // Rescate diferido: el acierto en sesión no saca la fallada del repaso;
+      // eso lo decide el ticket de salida.
+      C.updateHistory(user, scored, { noRescue: true });
+    } else if (!ephemeral) {
+      C.updateHistory(user, scored);
+    }
+    if (currentSession && (currentQuiz.mode === 'session' || currentQuiz.mode === 'daily')) {
+      currentSession.practiced.push(...scored.results);
+    }
     let dailyResult = null;
     // Entregar el reto totalmente en blanco no mantiene la racha: el hábito
     // que premia la racha es estudiar, no abrir la app.
@@ -681,10 +856,60 @@
       bannerChildren.push(el('div', { class: 'detail challenge-verdict' }, verdict));
       bannerChildren.push(el('div', { class: 'detail' }, 'Comparte tu nota con «🔗 Compartir este test» y devuelve el reto.'));
     }
-    bannerChildren.push(el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' }, [
-      el('button', { class: 'btn primary', onclick: exitQuiz }, '↩ Nuevo test'),
-      el('button', { class: 'btn', onclick: shareCurrentQuiz }, '🔗 Compartir este test'),
-    ]));
+    // Estudio-confort: aviso honesto cuando el test apenas enseña nada nuevo
+    if (comfortCheck.ok && comfortCheck.comfort) {
+      bannerChildren.push(el('div', { class: 'detail warn' },
+        '🛋 ' + comfortCheck.masteredCount + ' de ' + comfortCheck.withHistory +
+        ' ya las dominabas: este test te ha enseñado poco nuevo.'));
+    }
+    if (currentQuiz.mode === 'ticket') {
+      bannerChildren.push(el('div', { class: 'detail streak' },
+        '🎟 ' + (ticketRescued ? ticketRescued + ' pregunta' + (ticketRescued > 1 ? 's' : '') + ' rescatada' + (ticketRescued > 1 ? 's' : '') + ' del repaso.' : 'Nada rescatado: lo fallado sigue pendiente.')));
+    }
+
+    const actionRow = el('div', { class: 'row', style: 'justify-content: center; margin-top: 10px;' });
+    if (currentSession && currentSession.index < currentSession.blocks.length - 1) {
+      actionRow.appendChild(el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          currentSession.index++;
+          runSessionBlock();
+        },
+      }, '▶ Siguiente bloque (' + (currentSession.index + 2) + '/' + currentSession.blocks.length + ')'));
+    } else if (currentSession) {
+      actionRow.appendChild(el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          currentSession.index++;
+          runSessionBlock(); // → finishSession con ticket de salida
+        },
+      }, '🏁 Cerrar sesión'));
+    } else {
+      actionRow.appendChild(el('button', { class: 'btn primary', onclick: exitQuiz }, '↩ Nuevo test'));
+      if (comfortCheck.ok && comfortCheck.comfort) {
+        actionRow.appendChild(el('button', {
+          class: 'btn',
+          onclick: () => {
+            exitQuiz();
+            if ((user.failedIds || []).length) {
+              $('quizMode').value = 'failed';
+              $('startQuizBtn').click();
+            } else {
+              $('composeSessionBtn').click();
+            }
+          },
+        }, '🎯 Ir a lo útil'));
+      }
+      // Ticket de salida también tras un test normal con material que rescatar
+      if (currentQuiz.mode === 'normal' || currentQuiz.mode === 'failed') {
+        const ticket = C.buildExitTicket(scored.results, bank.active(), { rng: C.createRng(Math.floor(Math.random() * 1e9)) });
+        if (ticket.length && scored.wrong > 0) {
+          actionRow.appendChild(el('button', { class: 'btn', onclick: () => startExitTicket(ticket) }, '🎟 Ticket de salida'));
+        }
+      }
+    }
+    actionRow.appendChild(el('button', { class: 'btn', onclick: shareCurrentQuiz }, '🔗 Compartir este test'));
+    bannerChildren.push(actionRow);
     banner.appendChild(el('div', { class: 'score-banner' }, bannerChildren));
     banner.scrollIntoView({ behavior: 'smooth' });
   }

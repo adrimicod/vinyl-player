@@ -81,6 +81,21 @@
 
     <!-- ============ HACER TEST ============ -->
     <section class="panel" id="panel-quiz">
+      <div class="card session-card" id="sessionCard">
+        <h2>⚡ Estudia ahora</h2>
+        <p class="hint">Dime cuánto tiempo tienes y compongo tu sesión: primero lo que vence, luego lo que fallas, después lo que se enfría — cada bloque con su porqué.</p>
+        <div class="row wrap">
+          <label>Tiempo disponible
+            <select id="sessionBudget">
+              <option value="10">10 min</option>
+              <option value="20" selected>20 min</option>
+              <option value="40">40 min</option>
+            </select>
+          </label>
+          <button class="btn primary" id="composeSessionBtn">⚡ Componer sesión</button>
+        </div>
+        <div id="sessionAgenda"></div>
+      </div>
       <div class="card daily-card" id="dailyCard"></div>
       <div class="card" id="quizSetup">
         <h2>Configura tu test</h2>
@@ -222,6 +237,9 @@
   <script src="js/core/profile.js"></script>
   <script src="js/core/staleness.js"></script>
   <script src="js/core/confusables.js"></script>
+  <script src="js/core/sessionPlanner.js"></script>
+  <script src="js/core/exitTicket.js"></script>
+  <script src="js/core/comfort.js"></script>
   <script src="js/aiProvider.js"></script>
   <script src="js/app.js"></script>
 </body>

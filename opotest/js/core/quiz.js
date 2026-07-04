@@ -110,11 +110,16 @@
    * Muta y devuelve userState {seenIds: [], failedIds: [], stats}.
    */
   /**
-   * @param {object} [opts] {countAsTest: false} — para modos que corrigen
-   *   pregunta a pregunta (cadena): acumulan aciertos/fallos pero no deben
-   *   sumar un «test hecho» por cada respuesta.
+   * @param {object} [opts]
+   *   {countAsTest: false} — modos que corrigen pregunta a pregunta (cadena):
+   *     acumulan aciertos/fallos pero no suman un «test hecho» por respuesta.
+   *   {noRescue: true} — rescate diferido (ticket de salida): un acierto NO
+   *     saca la pregunta de failedIds/falseCertaintyIds; solo el ticket
+   *     posterior rescata (exitTicket.applyTicketRescue). Por defecto, el
+   *     comportamiento clásico (acierto = rescate inmediato) no cambia.
    */
   function updateHistory(userState, scored, opts) {
+    const noRescue = !!(opts && opts.noRescue);
     userState.seenIds = userState.seenIds || [];
     userState.failedIds = userState.failedIds || [];
     userState.falseCertaintyIds = userState.falseCertaintyIds || [];
@@ -142,14 +147,14 @@
       const fIdx = userState.failedIds.indexOf(r.id);
       if (r.outcome === 'wrong') {
         if (fIdx === -1) userState.failedIds.push(r.id);
-      } else if (r.outcome === 'correct' && fIdx !== -1) {
+      } else if (r.outcome === 'correct' && fIdx !== -1 && !noRescue) {
         userState.failedIds.splice(fIdx, 1); // acertada: sale del repaso
       }
       // Falsas certezas: entran al fallar con «Seguro», salen al acertar
       const fcIdx = userState.falseCertaintyIds.indexOf(r.id);
       if (r.falseCertainty) {
         if (fcIdx === -1) userState.falseCertaintyIds.push(r.id);
-      } else if (r.outcome === 'correct' && fcIdx !== -1) {
+      } else if (r.outcome === 'correct' && fcIdx !== -1 && !noRescue) {
         userState.falseCertaintyIds.splice(fcIdx, 1);
       }
     }
