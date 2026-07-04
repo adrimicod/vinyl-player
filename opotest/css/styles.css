@@ -378,6 +378,20 @@ input.cloze-ok { outline: 2px solid var(--ok); }
 input.cloze-bad { outline: 2px solid var(--bad); }
 .cloze-solution { color: var(--ok); font-size: 0.88rem; white-space: nowrap; }
 
+/* ---- Talón de Aquiles + gemelas (it.10) ---- */
+.kind-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #26314a;
+  font-size: 0.9rem;
+}
+.kind-row .kind-label { flex: 1; }
+.kind-row .kind-acc { color: var(--text-dim); font-size: 0.82rem; }
+.kind-row.weakest { background: rgba(231, 76, 60, 0.08); border-radius: 8px; }
+.twins-compare .explanation { margin-top: 4px; }
+
 /* ---- Chuleta ---- */
 .cheatsheet table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 0.85rem; }
 .cheatsheet td { border-bottom: 1px solid #26314a; padding: 6px 8px; vertical-align: top; }

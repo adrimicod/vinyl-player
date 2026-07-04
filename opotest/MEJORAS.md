@@ -470,7 +470,7 @@ directo al modo repaso de falladas desde la pestaña Repaso.
 **Verificación del efecto it.8** — test de regresión anti-fuga: ninguna
 opción correcta se repite entre preguntas del mismo lote generado.
 
-## Iteración 10 — Rama EXPLORAR: personalización del estudio sobre los datos ya persistidos (en curso)
+## Iteración 10 — Rama EXPLORAR: personalización del estudio sobre los datos ya persistidos (completada)
 
 **Decisión del agente director**: EXPLORAR.
 Las tres condiciones pro-explorar de §2.1 se cumplen a la vez: (1) dos pasadas de
@@ -493,87 +493,139 @@ el backlog, funcionalidades que conviertan esos datos en decisiones de estudio p
 el opositor; el evaluador puntuará contra §1.3 (0 IA / 0 créditos preferente, núcleo
 puro testeable) y compondrá la selección con sus criterios de aceptación.
 
+Fase creativa del flujo §2.1: el subagente de ideas propuso 8 ideas dentro del
+foco; evaluación del subagente evaluador (impacto usuario / encaje visión §1.3 /
+esfuerzo F0, 5 = barato / riesgo invertido, 5 = poco riesgo; total sobre 20):
+
+| # | Idea | Imp. | Enc. | Esf. | Ries. | Total | Veredicto |
+|---|------|------|------|------|-------|-------|-----------|
+| 4 | Talón de Aquiles: perfil por tipo de dato | 4 | 5 | 5 | 4 | **18** | ✅ Seleccionada — ES la mitad «perfil de fallo» del backlog #2 en su **tercera señal** (it.6 + it.7 + esta), y más barata que la versión del backlog: el `kind` (number/definition/enumeration/statement) ya viaja en cada pregunta generada, así que cruzarlo con `perQuestion` es un core puro trivial (`profile.js`) sin prerrequisitos. El botón «Entrenar solo plazos» convierte el diagnóstico en decisión de estudio: exactamente el foco del director. |
+| 3 | Radar de olvido | 5 | 5 | 3 | 4 | **17** | ✅ Seleccionada — el olvido de lo dominado es el único dato ya persistido que ninguna feature explota (todas miran falladas, ninguna lo que se enfría) y conecta con el backlog #1 histórico («repaso espaciado», **tercera señal**). La posición en `seenIds` da la recencia sin migración de datos, y el mismo `staleness.js` ordena también las falladas por antigüedad → absorbe el núcleo del backlog #1 y lo cierra tras cuatro iteraciones en cabeza. |
+| 5 | Parejas confundibles | 4 | 5 | 3 | 3 | **15** | ✅ Seleccionada — ES la mitad «mapa de confusiones» del backlog #2 en su **tercera propuesta independiente**; la variante «`similarity.js` al revés» esquiva el prerrequisito que encarecía la versión del backlog (persistir el índice elegido) y el modo «Gemelas» materializa los mini-drills de discriminación aportados en it.7. Con la 4 cierra el backlog #2 completo. Riesgo real: pares espurios o escasos en bancos pequeños → umbral testeado y degradación explícita. Desempata sobre la 1 (mismo total) por señal acumulada: cierra backlog histórico, la 1 no. |
+| 1 | Némesis: «las 10 que creo que vas a fallar» | 3 | 4 | 5 | 3 | **15** | → Backlog (nuevo) — reutiliza bien `readiness` (successProbability sobre `perQuestion`), es S y la predicción-con-veredicto es un gancho metacognitivo original que además rescata las preguntas de acierto mediocre que nunca entran en `failedIds`. Pero no cierra ninguna señal histórica y hereda el riesgo ya documentado de readiness («estimar con pocos datos engaña», it.5): exigiría el mismo guard de datos mínimos. Primer candidato S para un hueco futuro. |
+| 7 | Sesión a medida «estudia 15 min, elijo yo» | 4 | 4 | 3 | 3 | **14** | → Backlog, fusionada con «Plan de estudio» (#1 nuevo) — es exactamente la «prescripción diaria concreta» que it.7 pidió conservar, sin la cuenta atrás: al prescribir desde datos actuales (no pronósticos) esquiva la objeción de «estimaciones jóvenes». Cuarta señal de la familia planificación (it.6 + it.7 + it.10×2); pasa a ser la vía de entrada recomendada de esa fusión. No entra: sería una tercera M y solaparía con las tres seleccionadas, que ya convierten los mismos datos en decisiones. |
+| 6 | Cinturones por artículo | 3 | 3 | 3 | 4 | **13** | → Backlog (nuevo) — la vitrina motiva, pero es gamificación sin decisión de estudio nueva (la radiografía ya dice dónde flojeas y readiness cuánto te falta), fuera del foco de la iteración. La aportación a conservar es el «examen de cinturón» como rito de consolidación (5 preguntas, mín. 4, muerte al 2º fallo). Esperar señal de uso, como se hizo con la familia de juegos (it.6). |
+| 2 | Duelo contra tu yo pasado (fantasma) | 3 | 3 | 3 | 3 | **12** | → Backlog, fusionada con «Duelo» (#10) — **cuarta re-propuesta** (it.3, it.4, it.7). La novedad real (fantasma simulado desde la probabilidad histórica por pregunta, determinista con semilla del día) abarata la repetición frente a grabar ritmo real y sube el esfuerzo invertido respecto a it.3 (3 vs 2), pero el veredicto de fondo no cambia: el reto compartido (it.4) cubre la competición social a fracción del coste. Sin señal de demanda de usuarios, sigue baja. |
+| 8 | Cuenta atrás: plan hasta el examen | 3 | 3 | 2 | 2 | **10** | → Backlog, fusionada con «Plan de estudio» (#1 nuevo) — **tercera vez rechazada** (it.6 #8, it.7 #3): sigue siendo L, `readiness` sigue sin el rodaje que ambas iteraciones pidieron, y un reparto de lo pendiente sobre estimaciones poco fiables desmotiva. La parte valiosa (prescribir qué estudiar hoy) ya la aporta la idea 7 dentro de la misma fusión, sin depender de fecha de examen. |
+
+### Seleccionadas y criterios de aceptación
+
+**Idea 4 — Talón de Aquiles: perfil por tipo de dato** (esfuerzo S)
+- Nuevo `core/profile.js` puro: `buildKindProfile(bank, perQuestion)` cruza el
+  `kind` de cada pregunta activa con intentos/aciertos → % de acierto y volumen
+  por tipo; ignora preguntas sin `kind` o sin intentos y exige un mínimo de
+  intentos por tipo para emitir diagnóstico (por debajo → «sin datos», nunca un
+  número engañoso); determinista y cubierto con `node --test`.
+- Diagnóstico visible en Mi cuenta/Repaso («Plazos: 38% · Definiciones: 82%…»)
+  con el tipo más débil destacado; botón «Entrenar [tipo]» lanza un test
+  filtrado por `kind` sobre preguntas activas (0 IA, 0 créditos).
+- Tests: perfil correcto sobre un `perQuestion` sintético; el guard de datos
+  mínimos; el filtro por `kind` solo sirve preguntas activas de ese tipo.
+
+**Idea 3 — Radar de olvido** (esfuerzo M)
+- Nuevo `core/staleness.js` puro: clasifica como «en riesgo de olvido» las
+  preguntas dominadas (≥80% de acierto con un mínimo de intentos) cuya posición
+  en `seenIds` indica recencia baja (recencia relativa: sin migración de
+  datos ni timestamps nuevos); umbrales y casos límite cubiertos con
+  `node --test`.
+- Cierra el backlog #1 («repaso espaciado de falladas»): el mismo módulo ordena
+  las falladas por antigüedad para `buildReviewQuiz`, y los aciertos cuya
+  última confianza fue «dudo/adivino» no cuentan como dominio pleno
+  (`perQuestion` se extiende de forma tolerante con estados previos, patrón
+  it.4); ambos comportamientos testeados.
+- Tarjeta en Repaso «N dominadas se están enfriando» con modo «Antióxido»
+  (test solo con esas preguntas) y matiz ❄️ en las celdas de la radiografía
+  con dominadas frías; 0 IA, 0 créditos.
+
+**Idea 5 — Parejas confundibles** (esfuerzo M)
+- Nuevo `core/confusables.js` puro: detecta pares de preguntas activas con
+  similitud ≥ umbral (reutiliza `similarity.js`) donde al menos una esté en
+  `failedIds`/`falseCertaintyIds`; salida determinista, sin pares duplicados
+  (A–B ≡ B–A) ni auto-pares; tests de umbral (par claro detectado, par por
+  debajo descartado).
+- Modo «Gemelas» en Repaso: presenta las dos preguntas del par seguidas y, al
+  corregir, muestra lado a lado ambos enunciados con sus citas (`sourceQuote`)
+  señalando en qué difieren; el resultado alimenta el historial normal
+  (`updateHistory`), sin contadores paralelos.
+- Degradación explícita testeada: banco sin pares suficientes → «sin parejas
+  confundibles todavía», sin romper la app ni ofrecer el modo vacío.
+
 ## Backlog priorizado (siguientes iteraciones)
 
-1. **Repaso espaciado de preguntas falladas**: priorizar falladas antiguas y
-   aciertos con baja confianza. Baja de coste tras la it.5: el planificador de
-   `srs.js` (cajas/intervalos) es reutilizable, y el termómetro (it.3) más el
-   historial `perQuestion` (it.4) ya aportan los datos.
-2. **Perfil de fallo + mapa de confusiones** (ideas subagente, it.6 + it.7,
-   fusionadas): clasifica los errores acumulados (¿plazos? ¿negaciones?
-   ¿términos?) y detecta pares de conceptos confundidos recurrentes
-   comparando opción elegida y correcta, con mini-drills binarios de
-   discriminación (aportación it.7). Prerrequisito común: guardar el índice
-   elegido en `perQuestion` (`scoreQuiz` ya devuelve `given`); los tags
-   `mutation` de la it.5 abaratan la clasificación en preguntas demo. Núcleos
-   puros `errorProfile.js`/`confusions.js`.
-3. **Test por distribución de temas en la UI** — el core ya lo soporta
-   (`buildDistributedQuiz`, «40 de A, 30 de B, 30 de C»); falta la UI de reparto.
-4. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
+1. **Plan de estudio: sesión a medida + cuenta atrás al examen** (ideas
+   subagente, it.6 + it.7 + it.10 ×2, fusionadas — cuatro señales, la familia
+   más propuesta del backlog vivo): la vía de entrada recomendada es la
+   «sesión a medida de 15 min» (aportación it.10): compone la sesión óptima
+   desde datos actuales (falsas certezas + falladas + artículos rojos +
+   nunca vistas + flashcards vencidas) con receta explicada («por qué te
+   pregunto esto»), en `core/coach.js`, sin depender de fecha de examen ni de
+   pronósticos — esquiva la objeción de «estimaciones jóvenes» que tumbó tres
+   veces la cuenta atrás. La cuenta atrás con reparto de lo pendiente y
+   semáforo en-plazo/retrasado (`planner.js`, L, rechazada it.6 + it.7 +
+   it.10) queda como extensión posterior, cuando `readiness` tenga rodaje.
+2. **Modo audio manos libres** (ideas subagente, it.5 + it.6 + it.7, tres
    propuestas independientes): speechSynthesis lee pregunta, opciones y
    corrección, respuesta con teclas y fallback silencioso. Mantener el
    `core/audioQueue.js` de it.6 (secuenciación testeable) frente al «sin core»
    de it.7. Persiste el riesgo de voces en español desiguales por navegador y
    `file://`; validar con prueba manual.
-5. **Plan de estudio con cuenta atrás al examen** (ideas subagente, it.6 +
-   it.7, fusionadas): fecha de examen + plan diario cruzando radiografía,
-   Leitner y readiness, con prescripción concreta («hoy: 10 preguntas de
-   arts. 13-18 + 12 tarjetas + reto»; aportación it.7) y semáforo
-   en-plazo/retrasado (`core/planner.js`). Baja prioridad hasta que
-   `readiness` tenga rodaje: un pronóstico poco fiable desmotiva. Esfuerzo L:
-   trocear si entra.
-6. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
+3. **Test por distribución de temas en la UI** — el core ya lo soporta
+   (`buildDistributedQuiz`, «40 de A, 30 de B, 30 de C»); falta la UI de reparto.
+4. **Némesis: «las 10 que creo que vas a fallar»** (idea subagente, it.10):
+   test con las preguntas de menor probabilidad personal (`successProbability`
+   de readiness sobre `perQuestion`), con predicción de nota antes y veredicto
+   al corregir; rescata las preguntas de acierto mediocre que nunca entran en
+   `failedIds`. Núcleo puro `nemesis.js`, esfuerzo S. Requiere el mismo guard
+   de datos mínimos que readiness (it.5).
+5. **El intruso: juego de enumeraciones** (idea subagente, it.6): 3 elementos
    reales de una enumeración + 1 colado de otra; núcleo puro
    `intruderGame.js` sobre los `facts` del parser. Esperar a que la familia de
    juegos (reverse, trapGame, flashcards) demuestre uso antes de ampliarla.
-7. **Explícalo antes de mirar** (idea subagente, it.7): al fallar (o acertar
+6. **Explícalo antes de mirar** (idea subagente, it.7): al fallar (o acertar
    dudando) el usuario escribe su razonamiento y la app lo compara con
    `explanation`+`sourceQuote` (Jaccard) señalando conceptos ausentes; núcleo
    puro `selfExplain.js`. Riesgo: el feedback por solape de tokens sobre texto
    libre puede ser ruido; prototipar la calidad del feedback antes de
    comprometer UI.
+7. **Cinturones por artículo** (idea subagente, it.10): 🥉/🥈/🥇 por celda de
+   radiografía según acierto+intentos, con «examen de cinturón» para subir
+   (5 preguntas, mín. 4, muerte al 2º fallo) y vitrina en Mi cuenta. Núcleo
+   puro `mastery.js`. Gamificación sin decisión de estudio nueva: esperar
+   señal de uso, como con la familia de juegos.
 8. **Import de PDF** (pdf.js) además de .txt — la mayoría de temarios son PDF.
 9. **Multi-usuario simulado** para probar la mecánica comunitaria completa en F0
    (cambiar de usuario activo y ver votos/recompensas cruzadas).
 10. **Duelo** (ideas subagente, it.3/it.4 «fantasma» + it.5 «local» + it.7
-    «fantasma con ritmo real», fusionadas): la variante it.7 abarata la
-    repetición (secuencia de tiempos/aciertos reproducida con `timer.js` y
-    transportada en la URL de reto vía `share.js`), pero el «reto compartido»
-    (it.4) ya cubre la competición social a una fracción del coste; baja
-    prioridad salvo señal de demanda de usuarios.
+    «fantasma con ritmo real» + it.10 «duelo contra tu yo pasado», fusionadas
+    — cuarta re-propuesta): la variante it.10 abarata la repetición (fantasma
+    simulado desde la probabilidad histórica por pregunta, determinista con
+    semilla del día, `core/ghost.js`) frente a grabar ritmo real, pero el
+    «reto compartido» (it.4) sigue cubriendo la competición social a una
+    fracción del coste; baja prioridad salvo señal de demanda de usuarios.
 11. **Verificador IA de segundo pase** (F1): cada pregunta generada se re-valida
     con un prompt barato («¿es la marcada la única respuesta correcta según la fuente?»).
 12. **Taxonomía de leyes** con autocompletado (BOE) para que «Ley 39/2015» y
     «LPACAP» no fragmenten el banco.
 13. **PWA** (manifest + service worker) para estudiar offline en el móvil.
-14. **Calidad del generador, segunda tanda** (auditoría it.8: Q5, Q7, Q8, Q9):
-    `DEFINITION_RE` codicioso produce términos basura de 60 chars; distractores
-    numéricos sin concordancia («1 años») o delatores (entero entre decimales,
-    formato no conservado); el test inverso inventa artículos inexistentes y
-    repite opciones; la chuleta clasifica cualquier número como «plazo».
-    Cuatro S del corazón del producto: primeras candidatas para it.9, tras
-    verificar el efecto de Q1+Q2/Q6+Q3 del lote it.8.
-15. **Persistencia del simulacro en curso** (auditoría it.8: U4): recargar
-    durante un simulacro pierde el examen sin aviso. Decidir entre persistir
-    estado (timer incluido) en `userState` o, como mínimo, `beforeunload`;
-    S-M con diseño propio.
-16. **Unificar la capa de feedback** (auditoría it.8: U5): mitad `alert()`/
-    `prompt()` nativos, mitad UI inline; el peor caso (compartir en `file://`
-    cae a un prompt de ~14.000 caracteres) puede adelantarse como S suelto.
-17. **Reorganizar la pestaña «Repaso»** (auditoría it.8: U6): no contiene ni
-    enlaza el «Repaso de falladas» (vive en Hacer test); con falladas
-    registradas la pestaña ni las menciona.
-18. **Cobro robusto del generador IA** (auditoría it.8: B6, PROBABLE, único
+14. **Persistencia completa del simulacro en curso** (resto de la auditoría
+    it.8 U4): it.9 añadió el aviso `beforeunload`; persistir el estado del
+    examen (timer incluido) en `userState` queda como decisión de diseño
+    propia (S-M), anotada como candidata F1.
+15. **Unificar la capa de feedback** (resto de la auditoría it.8 U5): mitad
+    `alert()`/`prompt()` nativos, mitad UI inline; el peor caso (compartir en
+    `file://` caía a un prompt de ~14.000 caracteres) quedó cerrado en it.9;
+    resta la unificación M transversal.
+16. **Cobro robusto del generador IA** (auditoría it.8: B6, PROBABLE, único
     hallazgo sin confirmar): `generateBtn` ignora el retorno de
     `credits.spend()` y ClaudeProvider no recorta su salida a `affordable` →
     preguntas gratis si el modelo devuelve de más. Confirmar con proveedor
     real (hoy solo Demo lo recorta) y arreglar ambos extremos.
-19. **Menudencias de UI** (auditoría it.8: U7, U8, U10): clave interna «todas»
+17. **Menudencias de UI** (auditoría it.8: U7, U8, U10): clave interna «todas»
     visible en la cadena y récord ausente de Mis estadísticas; «Ver en
     radiografía» sin resalte ni scroll al artículo débil; «1 ejercicios» sin
     singular; el Banco lista 100 de N sin indicarlo; exportar sin feedback.
     Lote XS-S de barrido para cualquier hueco de iteración.
-20. **Higiene de namespace en `OpoCore`** (auditoría it.8: B9): colisión
+18. **Higiene de namespace en `OpoCore`** (auditoría it.8: B9): colisión
     `THRESHOLDS` entre `quality.js` y `coverage.js`; hoy sin consumidor en
     navegador, arreglar antes de que alguno lo consuma.
 
@@ -602,3 +654,17 @@ salen del backlog al ser seleccionados; el «mapa de confusiones» se fusiona co
 «plan de estudio» con «cuenta atrás al examen» (#5) y el «duelo fantasma con
 ritmo real» con «Duelo» (#10); «explícalo antes de mirar» entra como punto
 nuevo (#7).
+
+Nota de fusión (it.10): el «Repaso espaciado de preguntas falladas» (antiguo
+#1, el más antiguo del backlog) sale al quedar absorbido por el «Radar de
+olvido» seleccionado (sus dos requisitos — falladas antiguas primero y
+aciertos con baja confianza — están en los criterios de aceptación); el
+«Perfil de fallo + mapa de confusiones» (antiguo #2, tercera señal) sale al
+ser seleccionado en sus dos mitades como «Talón de Aquiles» y «Parejas
+confundibles»; la «sesión a medida» y la «cuenta atrás» se fusionan con el
+«plan de estudio» (#1 nuevo, cuatro señales acumuladas) y el «duelo contra tu
+yo pasado» con «Duelo» (#10, cuarta re-propuesta); «Némesis» y «Cinturones por
+artículo» entran como puntos nuevos (#4 y #7). Además, los antiguos #14
+(calidad del generador, segunda tanda) y #17 (pestaña Repaso) salen al quedar
+cerrados por la it.9, y #15/#16 se reescriben como residuales de lo que it.9
+dejó hecho.

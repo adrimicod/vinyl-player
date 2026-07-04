@@ -316,9 +316,11 @@
       return startChain(pool);
     }
     if (mode === 'failed') {
-      // Primero lo más peligroso: falsas certezas y rompe-cadenas
+      // Primero lo más peligroso (falsas certezas, rompe-cadenas); el resto,
+      // por antigüedad: lo fallado hace más tiempo es lo más olvidado.
       const priority = (user.falseCertaintyIds || []).concat(user.chainBreakerIds || []);
-      questions = C.buildReviewQuiz(pool, user.failedIds, count, rng, priority);
+      const byAge = C.orderFailedByAge(user.failedIds, user.seenIds);
+      questions = C.buildReviewQuiz(pool, byAge, count, rng, priority);
       if (!questions.length) return alert('No tienes preguntas falladas pendientes de repaso. ¡Bien!');
     } else if (mode === 'reverse') {
       questions = C.buildReverseQuiz(pool, { count, rng });
@@ -612,6 +614,25 @@
       qBox.appendChild(el('div', { class: 'explanation' }, '💡 ' + q.explanation));
       if (bank.get(q.id)) qBox.appendChild(qualityActions(q));
     });
+
+    // Modo gemelas: mostrar lado a lado en qué difieren las dos preguntas
+    if (currentQuiz.mode === 'twins' && currentQuiz.pair) {
+      const { a, b } = currentQuiz.pair;
+      const diff = C.diffTokens(a.text + ' ' + a.sourceQuote, b.text + ' ' + b.sourceQuote);
+      $('quizArea').appendChild(el('div', { class: 'card twins-compare' }, [
+        el('h2', {}, '👯 En qué se diferencian'),
+        el('div', { class: 'grid-2' }, [
+          el('div', {}, [
+            el('p', { class: 'hint' }, 'Pregunta 1 — difiere en: ' + (diff.onlyA.join(', ') || '(matices)')),
+            el('div', { class: 'explanation' }, '«' + a.sourceQuote + '»'),
+          ]),
+          el('div', {}, [
+            el('p', { class: 'hint' }, 'Pregunta 2 — difiere en: ' + (diff.onlyB.join(', ') || '(matices)')),
+            el('div', { class: 'explanation' }, '«' + b.sourceQuote + '»'),
+          ]),
+        ]),
+      ]));
+    }
 
     const detailParts = ['✅ ' + scored.correct + ' aciertos · ❌ ' + scored.wrong + ' fallos · ⚪ ' + scored.blank +
       ' en blanco · (cada fallo resta 1/3, baremo de oposición)'];
@@ -1083,9 +1104,59 @@
 
   function renderReview() {
     renderFailedCard();
+    renderStalenessCard();
+    renderTwinsCard();
     renderSrs();
     renderTrapIntro();
     renderClozeInfo();
+  }
+
+  /** Radar de olvido: protege lo que ya sabes antes de que se enfríe. */
+  function renderStalenessCard() {
+    const old = document.getElementById('stalenessCard');
+    if (old) old.remove();
+    const cold = C.coldMasteredQuestions(bank.active(), user);
+    if (!cold.length) return;
+    const card = el('div', { class: 'card', id: 'stalenessCard' }, [
+      el('h2', {}, '🧊 ' + cold.length + ' dominada' + (cold.length > 1 ? 's' : '') + ' se está' + (cold.length > 1 ? 'n' : '') + ' enfriando'),
+      el('p', { class: 'hint' }, 'Preguntas que sabes pero llevas tiempo sin ver: repásalas antes de que el olvido las borre.'),
+      el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          currentQuiz = { questions: cold.slice(0, 10), submitted: false, mode: 'normal' };
+          document.querySelector('[data-tab="quiz"]').click();
+          renderQuizArea();
+        },
+      }, '❄️ Antióxido: repasar las frías'),
+    ]);
+    const panel = $('panel-review');
+    panel.insertBefore(card, panel.firstChild);
+  }
+
+  /** Parejas confundibles: entrena la diferencia entre casi-iguales. */
+  function renderTwinsCard() {
+    const old = document.getElementById('twinsCard');
+    if (old) old.remove();
+    const pairs = C.findConfusablePairs(bank.active(), user);
+    const card = el('div', { class: 'card', id: 'twinsCard' }, [el('h2', {}, '👯 Parejas confundibles')]);
+    if (!pairs.length) {
+      card.appendChild(el('p', { class: 'hint' },
+        'Sin parejas confundibles todavía: aparecen cuando fallas una pregunta muy parecida a otra del banco (los «artículos gemelos» que confunden en el examen).'));
+    } else {
+      card.appendChild(el('p', { class: 'hint' }, pairs.length + ' pareja' + (pairs.length > 1 ? 's' : '') +
+        ' detectada' + (pairs.length > 1 ? 's' : '') + ': dos preguntas casi iguales donde caes. Respóndelas seguidas y aprende a distinguirlas.'));
+      card.appendChild(el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          const pair = pairs[0];
+          currentQuiz = { questions: [pair.a, pair.b], submitted: false, mode: 'twins', pair };
+          document.querySelector('[data-tab="quiz"]').click();
+          renderQuizArea();
+        },
+      }, '👯 Jugar la pareja más traicionera'));
+    }
+    const panel = $('panel-review');
+    panel.insertBefore(card, panel.firstChild);
   }
 
   /**
@@ -1301,6 +1372,20 @@
     ]));
   }
 
+  /** Test de entrenamiento filtrado por tipo de dato (0 IA, 0 créditos). */
+  function startKindTraining(kind, label) {
+    const pool = C.questionsByKind(bank.active(), kind);
+    if (!pool.length) return alert('No quedan preguntas activas de tipo «' + label + '».');
+    const { questions } = C.buildQuiz(pool, {
+      count: Math.min(10, pool.length),
+      seenIds: user.seenIds,
+      rng: C.createRng(Math.floor(Math.random() * 1e9)),
+    });
+    currentQuiz = { questions, submitted: false, mode: 'normal' };
+    document.querySelector('[data-tab="quiz"]').click();
+    renderQuizArea();
+  }
+
   // ---------- Radiografía del temario ----------
 
   const COVERAGE_ICONS = { empty: '⬜', untried: '🔵', good: '🟢', medium: '🟡', weak: '🔴' };
@@ -1313,20 +1398,29 @@
       box.appendChild(el('p', { class: 'hint' }, 'Aún no hay preguntas en el banco. Genera las primeras en «Generar».'));
       return;
     }
+    // Celdas con preguntas dominadas «frías» (radar de olvido): matiz ❄️
+    const coldByCell = new Set();
+    for (const q of C.coldMasteredQuestions(bank.active(), user)) {
+      const article = C.articleOf(q);
+      if (article) coldByCell.add(((q.topic && q.topic.ley) || '(sin ley)') + '|' + article);
+    }
+
     for (const row of grid) {
       box.appendChild(el('h3', { class: 'coverage-ley' }, row.ley));
       const cells = el('div', { class: 'coverage-row' });
       for (const cell of row.cells) {
+        const isCold = coldByCell.has(row.ley + '|' + cell.article);
         const tip = cell.status === 'empty'
           ? 'Artículo ' + cell.article + ': acotado pero sin preguntas. Clic para generar.'
           : 'Artículo ' + cell.article + ': ' + cell.total + ' preguntas · ' +
             (cell.attempts ? cell.correct + '/' + cell.attempts + ' aciertos (' + Math.round(cell.accuracy * 100) + '%)' : 'sin intentar') +
+            (isCold ? ' · dominado pero enfriándose' : '') +
             '. Clic para hacer test.';
         cells.appendChild(el('button', {
           class: 'coverage-cell ' + cell.status,
           title: tip,
           onclick: () => onCoverageCellClick(row.ley, cell),
-        }, [COVERAGE_ICONS[cell.status] + ' ', el('span', {}, cell.article)]));
+        }, [COVERAGE_ICONS[cell.status] + (isCold ? '❄️' : '') + ' ', el('span', {}, cell.article)]));
       }
       box.appendChild(cells);
     }
@@ -1427,6 +1521,32 @@
           ]));
         }
         readyBox.appendChild(list);
+      }
+    }
+
+    // Talón de Aquiles: acierto por tipo de dato
+    const kindBox = $('kindProfileBox');
+    kindBox.innerHTML = '';
+    const profile = C.buildKindProfile(bank.active(), user.perQuestion);
+    if (!profile.rows.length) {
+      kindBox.appendChild(el('p', { class: 'hint' }, 'Haz tests para descubrir qué tipo de dato se te resiste.'));
+    } else {
+      for (const row of profile.rows) {
+        const isWeakest = profile.weakest && row.kind === profile.weakest.kind;
+        kindBox.appendChild(el('div', { class: 'kind-row' + (isWeakest ? ' weakest' : '') }, [
+          el('span', { class: 'kind-label' }, (isWeakest ? '🎯 ' : '') + row.label),
+          el('span', { class: 'kind-acc' }, row.accuracy === null
+            ? 'sin datos (' + row.attempts + '/' + C.MIN_ATTEMPTS_PER_KIND + ' intentos)'
+            : row.accuracy + '% en ' + row.attempts + ' intentos'),
+          row.accuracy !== null ? el('button', {
+            class: 'btn small',
+            onclick: () => startKindTraining(row.kind, row.label),
+          }, '▶ Entrenar') : el('span', {}, ''),
+        ]));
+      }
+      if (profile.weakest) {
+        kindBox.appendChild(el('p', { class: 'hint' },
+          '🎯 Tu talón de Aquiles: ' + profile.weakest.label.toLowerCase() + ' (' + profile.weakest.accuracy + '%).'));
       }
     }
 

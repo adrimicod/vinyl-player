@@ -127,6 +127,11 @@
         const tally = userState.perQuestion[r.id] || (userState.perQuestion[r.id] = { attempts: 0, correct: 0 });
         tally.attempts++;
         if (r.outcome === 'correct') tally.correct++;
+        // La última confianza matiza el «dominio» (radar de olvido): un
+        // acierto adivinando no es saber. Campo opcional, tolerante con
+        // estados antiguos que no lo tienen.
+        if (r.confidence) tally.lastConfidence = r.confidence;
+        else if (r.outcome === 'correct') delete tally.lastConfidence;
       }
     }
     for (const r of scored.results) {
@@ -165,7 +170,9 @@
     const priority = new Set(priorityIds || []);
     const pool = (failedIds || []).map((id) => byId.get(id)).filter(Boolean);
     const first = gen.shuffle(pool.filter((q) => priority.has(q.id)), random);
-    const rest = gen.shuffle(pool.filter((q) => !priority.has(q.id)), random);
+    // El resto respeta el orden recibido: el llamador puede pasar las falladas
+    // ordenadas por antigüedad (staleness.orderFailedByAge) — repaso espaciado.
+    const rest = pool.filter((q) => !priority.has(q.id));
     return first.concat(rest).slice(0, count || pool.length);
   }
 
