@@ -6,9 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Vinyl Player is a web-based music player with an animated turntable/vinyl record visualization. It's a pure frontend project using vanilla HTML5, CSS3, and JavaScript ES6+ with no build tools or frameworks.
 
+The repo also hosts a second, independent app in `blackjack/` (pass-and-play blackjack for one phone). It shares the same constraints — vanilla, no build step, `file://` compatible — but no code with the vinyl player. See `blackjack/README.md`.
+
 ## Running the Application
 
 Open `index.html` directly in a browser (works from `file://` protocol - no server required).
+The blackjack app opens the same way from `blackjack/index.html`.
 
 ## Architecture
 

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0b3d2c">
+    <title>Blackjack</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/cards.css">
+</head>
+<body>
+    <div class="app">
+
+        <!-- ============ PASO 1: JUGADORES ============ -->
+        <section class="screen setup-screen" id="setupStep1">
+            <header class="setup-header">
+                <div class="logo">21</div>
+                <h1>Blackjack</h1>
+                <p class="subtitle">Pasaos el movil &middot; caja + hasta 11 jugadores</p>
+            </header>
+
+            <div class="panel">
+                <div class="field">
+                    <span class="field-label">En la mesa</span>
+                    <div class="stepper">
+                        <button type="button" class="stepper-btn" id="lessPlayers" aria-label="Menos">&minus;</button>
+                        <span class="stepper-value" id="playerCount">4</span>
+                        <button type="button" class="stepper-btn" id="morePlayers" aria-label="Mas">+</button>
+                    </div>
+                </div>
+
+                <div class="name-inputs" id="nameInputs"></div>
+
+                <div class="field field-column">
+                    <span class="field-label">Fichas de cada jugador</span>
+                    <div class="segmented" id="bankrollOptions">
+                        <button type="button" class="segment" data-bankroll="200">200</button>
+                        <button type="button" class="segment is-active" data-bankroll="500">500</button>
+                        <button type="button" class="segment" data-bankroll="1000">1000</button>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary btn-block" id="toStep2Btn">Continuar</button>
+                <button type="button" class="btn btn-ghost btn-block" id="setupRulesBtn">Ver reglas</button>
+            </div>
+        </section>
+
+        <!-- ============ PASO 2: QUIEN LLEVA LA CAJA ============ -->
+        <section class="screen setup-screen hidden" id="setupStep2">
+            <header class="setup-header">
+                <div class="logo">$</div>
+                <h1>La caja</h1>
+                <p class="subtitle">Quien reparte y paga. El resto son jugadores.</p>
+            </header>
+
+            <div class="panel">
+                <div class="role-list" id="roleList"></div>
+
+                <p class="stage-sub" id="bankHint"></p>
+
+                <button type="button" class="btn btn-primary btn-block" id="startGameBtn">Empezar partida</button>
+                <button type="button" class="btn btn-ghost btn-block" id="backToStep1Btn">Atras</button>
+            </div>
+        </section>
+
+        <!-- ============ MESA ============ -->
+        <section class="screen game-screen hidden" id="gameScreen">
+            <header class="topbar">
+                <div class="topbar-info">
+                    <span class="topbar-round" id="roundLabel">Ronda 1</span>
+                    <span class="topbar-shoe" id="shoeLabel">Zapato 100%</span>
+                </div>
+                <div class="topbar-actions">
+                    <button type="button" class="icon-btn" id="rulesBtn" aria-label="Reglas">?</button>
+                    <button type="button" class="icon-btn" id="menuBtn" aria-label="Menu">&#9776;</button>
+                </div>
+            </header>
+
+            <div class="felt">
+                <div class="bank-area" id="bankArea">
+                    <div class="area-title">
+                        <span id="bankName">Caja</span>
+                        <span class="total-badge" id="bankTotal"></span>
+                        <span class="area-chips" id="bankChips"></span>
+                    </div>
+                    <div class="cards-row" id="bankCards"></div>
+                </div>
+
+                <p class="banner" id="banner"></p>
+
+                <div class="seats" id="seats"></div>
+            </div>
+
+            <div class="stage" id="stage"></div>
+        </section>
+    </div>
+
+    <!-- ============ MODAL ============ -->
+    <div class="modal hidden" id="modal">
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-box">
+            <h2 class="modal-title" id="modalTitle"></h2>
+            <div class="modal-body" id="modalBody"></div>
+            <button type="button" class="btn btn-primary btn-block" id="modalClose">Cerrar</button>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

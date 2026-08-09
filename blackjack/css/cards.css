@@ -1,0 +1,110 @@
+/* ==========================================================
+   Blackjack - Cartas
+   ========================================================== */
+
+.pcard {
+    position: relative;
+    width: 50px;
+    height: 72px;
+    border-radius: 7px;
+    background: linear-gradient(160deg, #ffffff 0%, #f1f1f4 100%);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+    color: #1b1b1f;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px 5px;
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
+}
+
+.pcard.red {
+    color: #c62828;
+}
+
+.pcard .r {
+    font-size: 0.9rem;
+}
+
+.pcard .s {
+    font-size: 1.05rem;
+    align-self: flex-end;
+}
+
+.pcard .pip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    opacity: 0.16;
+}
+
+.pcard.big {
+    width: 62px;
+    height: 88px;
+    border-radius: 9px;
+    padding: 6px 7px;
+}
+
+.pcard.big .r {
+    font-size: 1.1rem;
+}
+
+.pcard.big .s {
+    font-size: 1.3rem;
+}
+
+.pcard.big .pip {
+    font-size: 2rem;
+}
+
+.pcard.tiny {
+    width: 32px;
+    height: 46px;
+    border-radius: 5px;
+    padding: 3px 3px;
+}
+
+.pcard.tiny .r {
+    font-size: 0.68rem;
+}
+
+.pcard.tiny .s {
+    font-size: 0.7rem;
+}
+
+.pcard.tiny .pip {
+    display: none;
+}
+
+/* Carta boca abajo */
+.pcard.back {
+    background:
+        repeating-linear-gradient(45deg, #7f1d1d 0 6px, #991b1b 6px 12px);
+    border: 2px solid #f8f4ec;
+}
+
+.pcard.back .r,
+.pcard.back .s,
+.pcard.back .pip {
+    display: none;
+}
+
+/* Entrada de carta nueva */
+@keyframes dealIn {
+    from {
+        opacity: 0;
+        transform: translateY(-14px) rotate(-6deg) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.pcard.deal-in {
+    animation: dealIn 0.28s cubic-bezier(0.25, 1, 0.5, 1) both;
+}
